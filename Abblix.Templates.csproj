@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <!-- The package metadations on https://learn.microsoft.com/en-us/nuget/create-packages/package-authoring-best-practices -->
+    <PackageId>Abblix.Templates</PackageId>
+    <PackageVersion>1.0</PackageVersion>
+    <Title>Abblix .NET Project Templates</Title>
+    <Authors>Abblix LLP</Authors>
+    <Description>ASP.NET Core WebAPI project templates developed by Abblix LLP.</Description>
+    <PackageTags>aspnetcore webapi react typescript vite</PackageTags>
+    <PackageProjectUrl>https://github.com/Abblix/Templates</PackageProjectUrl>
+
+    <!-- Keep package type as 'Template' to show the package as a template package on nuget.org and make your template available in dotnet new search.-->
+    <PackageType>Template</PackageType>
+    <TargetFramework>net8.0</TargetFramework>
+    <IncludeContentInPack>true</IncludeContentInPack>
+    <IncludeBuildOutput>false</IncludeBuildOutput>
+    <ContentTargetFolders>content</ContentTargetFolders>
+    <NoWarn>$(NoWarn);NU5128</NoWarn>
+    <NoDefaultExcludes>true</NoDefaultExcludes>
+    <PackageReadmeFile>content\README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <LocalizeTemplates>false</LocalizeTemplates>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.TemplateEngine.Tasks" Version="*" PrivateAssets="all" IsImplicitlyDefined="true"/>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="README.md" />
+    <Content Include="ReactTemplate\**" Exclude="**\bin\**;**\obj\**;**\node_modules\**" />
+    <Compile Remove="**\*" />
+  </ItemGroup>
+
+</Project>
