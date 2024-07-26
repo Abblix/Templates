@@ -5,7 +5,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <SpaRoot>ClientApp\</SpaRoot>
     <SpaProxyLaunchCommand>npm run dev</SpaProxyLaunchCommand>
-    <SpaProxyServerUrl>http://localhost:3000</SpaProxyServerUrl>
+    <SpaProxyServerUrl>https://localhost:3000</SpaProxyServerUrl>
     <DefaultItemExcludes>$(DefaultItemExcludes);$(SpaRoot)node_modules\**</DefaultItemExcludes>
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
