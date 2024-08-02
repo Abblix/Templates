@@ -2,17 +2,17 @@
     "$schema": "http://json.schemastore.org/template",
     "author": "abblix.com",
     "classifications": [
-        "WebAPI",
-        "ASP.NET Core",
+        "Web",
+        "MVC",
+        "SPA",
         "React",
         "TypeScript",
         "Vite"
     ],
-    "name": "ASP.NET Core WebAPI with React and Vite",
-    "description": "An ASP.NET Core WebAPI project template with React, TypeScript and Vite.",
+    "name": "ASP.NET Core MVC with React and Vite",
+    "description": "An ASP.NET Core MVC project template featuring a SPA built with React, TypeScript, and Vite",
     "precedence": "0",
     "identity": "Abblix.ReactTemplate",
-    "groupIdentity": "Abblix.Templates",
     "sourceName": "ReactTemplate",
     "shortName": "abblix-react",
     "aliases": [

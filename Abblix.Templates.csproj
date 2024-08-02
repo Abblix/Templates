@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <Content Include="README.md" />
-    <Content Include="ReactTemplate\**" Exclude="**\bin\**;**\obj\**;**\node_modules\**" />
+    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
 
