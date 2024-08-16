@@ -16,7 +16,7 @@ This template provides a starting point for building an ASP.NET Core WebAPI proj
 
 ## Installing the Templates
 
-First, you need to install the template from NuGet. If you haven't published it to NuGet yet, you can use the local `.nupkg` file.
+First, you need to install the template from NuGet, or you can use the local `.nupkg` file.
 
 ### Installing from NuGet
 
@@ -76,7 +76,7 @@ dotnet new react-vite -n MyNewProject
    dotnet run
    ```
 
-   This will start the ASP.NET Core server and the Vite development server. You can access the application in your browser at `http://localhost:5000`.
+   This will start the ASP.NET Core backend and the Vite development server. You can access the application in your browser at `http://localhost:5000`.
 
 ## Project Structure
 
