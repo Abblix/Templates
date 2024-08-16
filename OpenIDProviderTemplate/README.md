@@ -23,6 +23,7 @@
 - [Creating a New Project](#%EF%B8%8F-creating-a-new-project)
 - [Running the Project](#%EF%B8%8F-running-the-project)
 - [Project Structure](#-project-structure)
+- [Connecting Clients](#-connecting-clients)
 - [Configuration](#-configuration)
 - [Customization](#-customization)
 - [License](#-license)
@@ -155,6 +156,12 @@ Understanding the structure of your project is crucial for effective development
 - **MyOpenIDProvider.csproj**: Project file for the .NET project.
 - **Program.cs**: Entry point for the .NET application.
 - **TestUserStorage.cs**: In-memory storage for user credentials, useful for testing and development purposes.
+
+## 🖧 Connecting Clients
+
+Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
+
+For a comprehensive guide on how to configure clients, including examples and best practices, please refer to the detailed documentation: [Configuring Clients](https://docs.abblix.com/docs/getting-started-guide#configuring-openidproviderapp).
 
 ## 🔧 Configuration
 
