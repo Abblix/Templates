@@ -31,7 +31,7 @@
 
   <ItemGroup>
     <Content Include="README.md" />
-    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**" />
+    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
 
