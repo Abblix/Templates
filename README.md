@@ -28,9 +28,9 @@
 
 **Abblix ASP.NET Core Templates** includes two powerful templates designed to simplify and accelerate your development process. These templates provide a solid foundation for building modern web applications and identity providers with ASP.NET Core.
 
-- **ASP.NET Core WebAPI with React and Vite Template**:
+- **[ASP.NET Core WebAPI with React and Vite Template](https://github.com/Abblix/Templates/blob/master/ReactTemplate/README.md)**:
 This template serves as a starting point for creating an ASP.NET Core WebAPI project combined with a React frontend using TypeScript and Vite. It establishes a fundamental project structure and essential configurations, enabling developers to kickstart their applications swiftly.
-- **OpenID Connect Provider Template**:
+- **[OpenID Connect Provider Template](https://github.com/Abblix/Templates/blob/master/OpenIDProviderTemplate/README.md)**:
 This template is tailored for building an OpenID Connect Provider using ASP.NET Core in conjunction with the Abblix OIDC Server. It includes the core configurations and components needed to set up a functional identity provider, streamlining the process for developers to implement secure authentication solutions.
 
 ## 📋 Prerequisites
