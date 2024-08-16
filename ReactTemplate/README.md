@@ -1,5 +1,5 @@
 <a name="top"></a>
-[![Abblix OpenID Provider Template](https://resources.abblix.com/imgs/jpg/templates-github-banner-openidprovider.jpg)](https://github.com/Abblix/Templates)
+[![Abblix React Template](https://resources.abblix.com/imgs/jpg/templates-github-banner-react.jpg)](https://github.com/Abblix/Templates)
 [![.NET](https://img.shields.io/badge/.NET-6.0%2C%207.0%2C%208.0-512BD4)](#)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
 [![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](#)
