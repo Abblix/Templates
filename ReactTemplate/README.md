@@ -20,7 +20,7 @@
 - [About](#-about)
 - [Prerequisites](#-prerequisites)
 - [Installing](#-installing)
-- [Creating a New Project](#-creating-a-new-project)
+- [Creating a New Project](#%EF%B8%8F-creating-a-new-project)
 - [Running the Project](#-running-the-project)
 - [Project Structure](#-project-structure)
 - [License](#-license)
