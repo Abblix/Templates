@@ -18,7 +18,7 @@
 
 ## Table of Contents
 - [About](#-about)
-- [Prerequisites](#prerequisites)
+- [Prerequisites](#-prerequisites)
 - [Installing](#-installing)
 - [License](#-license)
 - [Acknowledgements](#-acknowledgements)
@@ -33,7 +33,7 @@ This template serves as a starting point for creating an ASP.NET Core WebAPI pro
 - **OpenID Connect Provider Template**:
 This template is tailored for building an OpenID Connect Provider using ASP.NET Core in conjunction with the Abblix OIDC Server. It includes the core configurations and components needed to set up a functional identity provider, streamlining the process for developers to implement secure authentication solutions.
 
-## 📋Prerequisites
+## 📋 Prerequisites
 
 Before you begin using the Abblix ASP.NET Core Templates, ensure that your development environment is properly set up with the following tools:
 
