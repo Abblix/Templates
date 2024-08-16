@@ -18,7 +18,7 @@
 
 ## Table of Contents
 - [About](#-about)
-- [Prerequisites](#-prerequisites)
+- [Prerequisites](#prerequisites)
 - [Installing](#-installing)
 - [License](#-license)
 - [Acknowledgements](#-acknowledgements)
