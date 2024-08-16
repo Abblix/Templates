@@ -175,7 +175,7 @@ We would like to acknowledge the following technologies that have been instrumen
 
 For more details about our products, services, or any general information regarding the Abblix OIDC Server, feel free to reach out to us. We are here to provide support and answer any questions you may have. Below are the best ways to contact our team:
 
-- **[Email](mailto:support@abblix.com)**: Send us your inquiries or support requests at support@abblix.com.
+- **[Email](mailto:support@abblix.com)**: Send us your inquiries or support requests via support@abblix.com.
 - **[Website](https://www.abblix.com/abblix-oidc-server)**: Visit the official page for more information.
 - **[GitHub Repository](https://github.com/Abblix/Oidc.Server)**: Explore the source code and contribute to the Abblix OIDC Server.
 - **[Getting Started Guide](https://github.com/Abblix/Oidc.Server.GettingStarted)**: Follow our step-by-step guide to create an OpenID Connect provider using ASP.NET MVC.
