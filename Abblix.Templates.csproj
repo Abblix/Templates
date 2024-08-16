@@ -7,8 +7,9 @@
     <Title>Abblix .NET Project Templates</Title>
     <Authors>Abblix LLP</Authors>
     <Description>ASP.NET Core WebAPI project templates developed by Abblix LLP.</Description>
-    <PackageTags>aspnetcore webapi react typescript vite</PackageTags>
+    <PackageTags>aspnetcore webapi react typescript vite frontend openidconnect oauth2 authentication security identityserver abblix</PackageTags>
     <PackageProjectUrl>https://github.com/Abblix/Templates</PackageProjectUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
 
     <!-- Keep package type as 'Template' to show the package as a template package on nuget.org and make your template available in dotnet new search.-->
     <PackageType>Template</PackageType>
