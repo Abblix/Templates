@@ -17,14 +17,14 @@
 
 
 ## Table of Contents
-- [About](#-about)
+- [About the Templates](#-about-the-templates)
 - [Prerequisites](#-prerequisites)
-- [Installing](#-installing)
+- [Installing the Templates](#-installing-the-templates)
 - [License](#-license)
 - [Acknowledgements](#-acknowledgements)
 - [Key Contacts & Resources](#-key-contacts--resources)
 
-## 🚀 About
+## 🚀 About the Templates
 
 **Abblix ASP.NET Core Templates** includes two powerful templates designed to simplify and accelerate your development process. These templates provide a solid foundation for building modern web applications and identity providers with ASP.NET Core.
 
@@ -40,7 +40,7 @@ Before you begin using the Abblix ASP.NET Core Templates, ensure that your devel
 - **[.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0)**: This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. Make sure to download and install the latest version to fully leverage the capabilities of the templates.
 - **[Node.js and npm](https://nodejs.org/)**: Node.js is required to manage the frontend dependencies for projects using React and Vite. npm (Node Package Manager) comes bundled with Node.js and is used to install and manage these dependencies. Having Node.js and npm installed ensures that you can seamlessly integrate and build the frontend parts of your application, especially when using modern JavaScript frameworks and tools like React and Vite.
 
-## 📝 Installing
+## 📝 Installing the Templates
 
 To start using the Abblix ASP.NET Core Templates, install them in your development environment either from NuGet or a local `.nupkg` file.
 
