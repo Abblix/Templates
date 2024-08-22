@@ -34,7 +34,7 @@
 
   <ItemGroup>
     <Content Include="Abblix.png" />
-    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**" />
+    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**;**\Nuget\templates-github-banner.jpg" />
     <Compile Remove="**\*" />
   </ItemGroup>
 
