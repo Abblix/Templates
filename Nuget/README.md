@@ -52,9 +52,9 @@ If you have a local `.nupkg` file, run:
 
 ```shell
 # Install the template from the local .nupkg file
-# Replace "path/to/Abblix.Templates.1.0.0.nupkg" with the actual file path
-# This lets you install and test the template locally before publishing it to NuGet
-dotnet new install path/to/Abblix.Templates.1.0.0.nupkg
+# Replace "path/to/Abblix.Templates.x.x.x.nupkg" with the actual file path
+# and update "x.x.x" where x.x.x is the actual number of the version
+dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 ```
 
 ## 📃 License
