@@ -1,5 +1,5 @@
-<a name="top"></a>
-[![Abblix React Template](https://resources.abblix.com/imgs/jpg/templates-github-banner-react.jpg)](https://github.com/Abblix/Templates)
+[![Abblix Templates](https://resources.abblix.com/imgs/jpg/templates-github-banner.jpg)](https://github.com/Abblix/Templates)
+
 [![.NET](https://img.shields.io/badge/.NET-6.0%2C%207.0%2C%208.0-512BD4)](#)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
 [![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](#)
@@ -15,27 +15,14 @@
 [![Share](https://img.shields.io/badge/share-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/submit?title=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Templates)
 [![Share](https://img.shields.io/badge/share-0088CC?logo=telegram&logoColor=white)](https://t.me/share/url?url=https://github.com/Abblix/Templates&text=Check%20out%20this%20project%20on%20GitHub)
 
-## Table of Contents
-- [About the Template](#-about-the-template)
-- [Prerequisites](#-prerequisites)
-- [Installing the Templates](#-installing-the-templates)
-- [Creating a New Project](#%EF%B8%8F-creating-a-new-project)
-- [Running the Project](#%EF%B8%8F-running-the-project)
-- [Project Structure](#-project-structure)
-- [License](#-license)
-- [Acknowledgements](#-acknowledgements)
-- [Key Contacts & Resources](#-key-contacts--resources)
+## 🚀 About the Templates
 
-## 🚀 About the Template
+**Abblix ASP.NET Core Templates** includes two powerful templates designed to simplify and accelerate your development process. These templates provide a solid foundation for building modern web applications and identity providers with ASP.NET Core.
 
-This template provides a starting point for building an ASP.NET Core WebAPI project with a React frontend using TypeScript and Vite. It sets up a basic project structure and configuration to help you get started quickly.
-
-### Features
-
-- **ASP.NET Core WebAPI**: A powerful framework for building web APIs with .NET.
-- **React**: A popular JavaScript library for building user interfaces.
-- **TypeScript**: A typed superset of JavaScript that compiles to plain JavaScript.
-- **Vite**: A fast build tool and development server for modern web projects.
+- **[ASP.NET Core WebAPI with React and Vite Template](https://github.com/Abblix/Templates/blob/master/ReactTemplate/README.md)**:
+This template serves as a starting point for creating an ASP.NET Core WebAPI project combined with a React frontend using TypeScript and Vite. It establishes a fundamental project structure and essential configurations, enabling developers to kickstart their applications swiftly.
+- **[OpenID Connect Provider Template](https://github.com/Abblix/Templates/blob/master/OpenIDProviderTemplate/README.md)**:
+This template is tailored for building an OpenID Connect Provider using ASP.NET Core in conjunction with the Abblix OIDC Server. It includes the core configurations and components needed to set up a functional identity provider, streamlining the process for developers to implement secure authentication solutions.
 
 ## 📋 Prerequisites
 
@@ -72,93 +59,6 @@ dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 
 This method allows you to install the template manually using the `.nupkg` file.
 
-## 🛠️ Creating a New Project
-
-You can create a new project using this template with any of the specified short names or aliases.
-
-### Using the Primary Short Name
-
-```shell
-# Creates a new project using the primary short name 'abblix-react'
-# The '-n MyNewProject' specifies the name of the new project folder
-dotnet new abblix-react -n MyNewProject
-```
-
-### Using Alternative Short Names
-
-```shell
-# Creates a new project using the 'react-net8' short name
-# Useful if you want to highlight .NET 8 usage in your project
-dotnet new react-net8 -n MyNewProject
-
-# Creates a new project using the 'react-typescript' short name
-# Ideal if your focus is on TypeScript support
-dotnet new react-typescript -n MyNewProject
-
-# Creates a new project using the 'react-vite' short name
-# Best if you want to emphasize the use of Vite in the project setup
-dotnet new react-vite -n MyNewProject
-```
-
-## ⚙️ Running the Project
-
-Once you've created your new project, you're ready to run it and see everything in action. Follow these steps to navigate through the project setup, restore dependencies, and launch both the .NET backend and the React frontend together.
-
-
-   ```shell
-   # Move into the project directory you just created
-   cd MyNewProject
-
-   # Restore all the necessary NuGet packages for the .NET project
-   dotnet restore
-
-   # Build the project to ensure everything is set up correctly
-   dotnet build
-
-   # Move into the ClientApp directory, where the React application resides
-   cd ClientApp
-
-   # Install all the required npm packages for React and Vite
-   npm install
-
-   # Start both the ASP.NET Core backend and the Vite development server
-   dotnet run
-   ```
-
-   This will start the ASP.NET Core backend and the Vite development server. You can access the application in your browser at `http://localhost:5000`.
-
-## 📂 Project Structure
-
-Understanding the structure of your project is crucial for effective development. Below is an overview of the directory layout generated by the template, highlighting key folders and files. This structure organizes your backend and frontend components, ensuring a clean separation of concerns and ease of navigation.
-
-```
-/MyNewProject
-├── Controllers/
-├── ClientApp/
-│   ├── src/
-│   │   ├── App.tsx
-│   │   ├── index.tsx
-│   │   └── ...
-│   ├── public/
-│   │   └── index.html
-│   ├── package.json
-│   ├── tsconfig.json
-│   └── vite.config.ts
-├── Properties/
-│   └── launchSettings.json
-├── appsettings.json
-├── MyNewProject.csproj
-└── Program.cs
-```
-
-- **Controllers/**: Contains API controllers.
-- **ClientApp/**: Contains the React frontend application.
-- **Properties/**: Contains project settings files.
-- **appsettings.json**: Configuration settings for the application.
-- **MyNewProject.csproj**: Project file for the .NET project.
-- **Program.cs**: Entry point for the .NET application.
-
-
 ## 📃 License
 
 This project is licensed under the MIT License. You can review the full license text at the following link: [MIT License](https://opensource.org/licenses/MIT).
@@ -184,4 +84,3 @@ For more details about our products, services, or any general information regard
 
 We look forward to assisting you and ensuring your experience with our products is successful and enjoyable!
 
-[Back to top](#top)

@@ -9,7 +9,9 @@
     <Description>ASP.NET Core WebAPI project templates developed by Abblix LLP.</Description>
     <PackageTags>aspnetcore webapi react typescript vite frontend openidconnect oauth2 authentication security identityserver abblix</PackageTags>
     <PackageProjectUrl>https://github.com/Abblix/Templates</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Abblix/Templates</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<PackageIcon>content\Abblix.png</PackageIcon>
 
     <!-- Keep package type as 'Template' to show the package as a template package on nuget.org and make your template available in dotnet new search.-->
     <PackageType>Template</PackageType>
@@ -19,7 +21,7 @@
     <ContentTargetFolders>content</ContentTargetFolders>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <NoDefaultExcludes>true</NoDefaultExcludes>
-    <PackageReadmeFile>content\README.md</PackageReadmeFile>
+    <PackageReadmeFile>content\Nuget\README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -31,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="README.md" />
+    <Content Include="Abblix.png" />
     <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
