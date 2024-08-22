@@ -73,8 +73,9 @@ dotnet new install Abblix.Templates
 
 ```shell
 # Install the template from the local .nupkg file
-# Replace "path/to/Abblix.Templates.1.0.0.nupkg" with the actual file path
-dotnet new install path/to/Abblix.Templates.1.0.0.nupkg
+# Replace "path/to/Abblix.Templates.x.x.x.nupkg" with the actual file path
+# and update "x.x.x" where x.x.x is the actual number of the version
+dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 ```
 
 ## 🛠️ Creating a New Project
