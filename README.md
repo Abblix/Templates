@@ -15,7 +15,6 @@
 [![Share](https://img.shields.io/badge/share-FF4500?logo=reddit&logoColor=white)](https://www.reddit.com/submit?title=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Templates)
 [![Share](https://img.shields.io/badge/share-0088CC?logo=telegram&logoColor=white)](https://t.me/share/url?url=https://github.com/Abblix/Templates&text=Check%20out%20this%20project%20on%20GitHub)
 
-
 ## Table of Contents
 - [About the Templates](#-about-the-templates)
 - [Prerequisites](#-prerequisites)
@@ -61,9 +60,9 @@ If you have a local `.nupkg` file, run:
 
 ```shell
 # Install the template from the local .nupkg file
-# Replace "path/to/Abblix.Templates.1.0.0.nupkg" with the actual file path
-# This lets you install and test the template locally before publishing it to NuGet
-dotnet new install path/to/Abblix.Templates.1.0.0.nupkg
+# Replace "path/to/Abblix.Templates.x.x.x.nupkg" with the actual file path
+# and update "x.x.x" where x.x.x is the actual number of the version
+dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 ```
 
 ## 📃 License
