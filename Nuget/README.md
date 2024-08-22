@@ -33,29 +33,31 @@ Before you begin using the Abblix ASP.NET Core Templates, ensure that your devel
 
 ## 📝 Installing the Templates
 
-To start using the Abblix ASP.NET Core Templates, install them in your development environment either from NuGet or a local `.nupkg` file.
+To start using the Abblix ASP.NET Core Templates, you can install them in your development environment either from NuGet or from a local `.nupkg` file.
 
 ### From NuGet
 
-If the template is published on NuGet, run:
+If you have access to NuGet.org, this method is preferable. Run:
 
-```shell
+```bash
 # Install the template package from NuGet
 dotnet new install Abblix.Templates
 ```
 
-This command downloads and installs the latest version of the templates directly from NuGet.
+This command downloads and installs the latest version of the templates directly from NuGet.org.
 
 ### From a Local `.nupkg` File
 
-If you have a local `.nupkg` file, run:
+If you don't have access to NuGet.org, but you have a local `.nupkg` file, run:
 
-```shell
+```bash
 # Install the template from the local .nupkg file
 # Replace "path/to/Abblix.Templates.x.x.x.nupkg" with the actual file path
-# and update "x.x.x" where x.x.x is the actual number of the version
+# This allows you to install the template locally without accessing an online repository
 dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 ```
+
+This method allows you to install the template manually using the `.nupkg` file.
 
 ## 📃 License
 
