@@ -11,7 +11,7 @@
     <PackageProjectUrl>https://github.com/Abblix/Templates</PackageProjectUrl>
     <RepositoryUrl>https://github.com/Abblix/Templates</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-	<PackageIcon>content\Abblix.png</PackageIcon>
+	<PackageIcon>Abblix.png</PackageIcon>
 
     <!-- Keep package type as 'Template' to show the package as a template package on nuget.org and make your template available in dotnet new search.-->
     <PackageType>Template</PackageType>
@@ -21,7 +21,7 @@
     <ContentTargetFolders>content</ContentTargetFolders>
     <NoWarn>$(NoWarn);NU5128</NoWarn>
     <NoDefaultExcludes>true</NoDefaultExcludes>
-    <PackageReadmeFile>content\Nuget\README.md</PackageReadmeFile>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 
   <PropertyGroup>
@@ -33,8 +33,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Abblix.png" />
-    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**" />
+    <Content Include="Abblix.png" Link="README.md" Pack="true" PackagePath="" />
+    <Content Include=".\Nuget\README.md" Link="README.md" Pack="true" PackagePath="" />
+    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**;Nuget\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
 
