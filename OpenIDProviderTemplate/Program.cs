@@ -6,7 +6,6 @@ using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Features.ClientInformation;
 using Abblix.Oidc.Server.Features.UserInfo;
 using Abblix.Oidc.Server.Mvc;
-using Microsoft.IdentityModel.Tokens;
 using OpenIDProviderApp;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -58,7 +57,7 @@ builder.Services.AddOidcServices(options =>
     options.LoginUri = new Uri($"/Auth/Login", UriKind.Relative);
 	
 	// The following line generates a new key for token signing. Replace it if you want to use your own keys.
-    options.SigningKeys = new[] { JsonWebKeyFactory.CreateRsa(JsonWebKeyUseNames.Sig) };
+    options.SigningKeys = [JsonWebKeyFactory.CreateRsa(PublicKeyUsages.Signature)];
 });
 
 static byte[] ToSha512Hash(string source) => SHA512.HashData(Encoding.UTF8.GetBytes(source));
