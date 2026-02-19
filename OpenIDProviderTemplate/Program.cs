@@ -54,7 +54,7 @@ builder.Services.AddOidcServices(options =>
     //};
 	
 	// The following URL leads to Login action of AuthController
-    options.LoginUri = new Uri($"/Auth/Login", UriKind.Relative);
+    options.LoginUri = new Uri("/Auth/Login", UriKind.Relative);
 	
 	// The following line generates a new key for token signing. Replace it if you want to use your own keys.
     options.SigningKeys = [JsonWebKeyFactory.CreateRsa(PublicKeyUsages.Signature)];
@@ -67,7 +67,7 @@ builder.Services
     .AddAuthentication()
     .AddCookie();
 
-// NOTE! This code is for demonstation purposes only. Do not use MemoryCache as a Distributed cache implementation in production environment.
+// NOTE! This code is for demonstration purposes only. Do not use MemoryCache as a Distributed cache implementation in production environment.
 builder.Services
     .AddDistributedMemoryCache();
 

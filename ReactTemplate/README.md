@@ -180,7 +180,7 @@ For more details about our products, services, or any general information regard
 - **[Website](https://www.abblix.com/abblix-oidc-server)**: Visit the official page for more information.
 - **[GitHub Repository](https://github.com/Abblix/Oidc.Server)**: Explore the source code and contribute to the Abblix OIDC Server.
 - **[Getting Started Guide](https://github.com/Abblix/Oidc.Server.GettingStarted)**: Follow our step-by-step guide to create an OpenID Connect provider using ASP.NET MVC.
-- **[Abblix Documentation](https://docs.abblix.com/docs)**: Access detailed documentation for all our products and services.
+- **[Abblix Documentation](https://docs.abblix.com/)**: Access detailed documentation for all our products and services.
 
 We look forward to assisting you and ensuring your experience with our products is successful and enjoyable!
 

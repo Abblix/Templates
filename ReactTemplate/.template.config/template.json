@@ -16,7 +16,7 @@
     "sourceName": "ReactTemplate",
     "shortName": "abblix-react",
     "aliases": [
-        "react-net8",
+        "react-net10",
         "react-typescript",
         "react-vite"
     ],

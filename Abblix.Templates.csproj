@@ -3,7 +3,7 @@
   <PropertyGroup>
     <!-- The package metadations on https://learn.microsoft.com/en-us/nuget/create-packages/package-authoring-best-practices -->
     <PackageId>Abblix.Templates</PackageId>
-    <PackageVersion>1.2</PackageVersion>
+    <PackageVersion>2.0.1</PackageVersion>
     <Title>Abblix .NET Project Templates</Title>
     <Authors>Abblix LLP</Authors>
     <Description>ASP.NET Core WebAPI project templates developed by Abblix LLP.</Description>
@@ -33,7 +33,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="Abblix.png" Link="README.md" Pack="true" PackagePath="" />
+    <Content Include="Abblix.png" Link="Abblix.png" Pack="true" PackagePath="" />
     <Content Include=".\Nuget\README.md" Link="README.md" Pack="true" PackagePath="" />
     <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\.idea\**;Nuget\**" />
     <Compile Remove="**\*" />

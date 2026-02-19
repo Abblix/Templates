@@ -9,7 +9,7 @@
 		"OAuth2.0"
     ],
     "name": "ASP.NET Core OpenID Provider",
-    "description": "A project template for creating an OpenID Provider using ASP.NET Core. This template provides the necessary infrastructure to implement an OpenID Connect and OAuth 2.0 complaint server, enabling secure authentication and authorization for applications.",
+    "description": "A project template for creating an OpenID Provider using ASP.NET Core. This template provides the necessary infrastructure to implement an OpenID Connect and OAuth 2.0 compliant server, enabling secure authentication and authorization for applications.",
     "precedence": "0",
     "identity": "Abblix.OpenIDProviderTemplate",
     "sourceName": "OpenIDProviderApp",
