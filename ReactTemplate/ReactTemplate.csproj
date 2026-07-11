@@ -10,7 +10,7 @@
     <PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.3"/>
+    <PackageReference Include="Microsoft.AspNetCore.SpaProxy" Version="10.0.9"/>
   </ItemGroup>
   <ItemGroup>
     <Content Remove="$(SpaRoot)**"/>
