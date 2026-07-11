@@ -26,6 +26,22 @@
         "type": "project"
     },
     "preferNameDirectory": true,
+    "sources": [
+        {
+            "source": "./",
+            "target": "./",
+            "exclude": [
+                "**/[Bb]in/**",
+                "**/[Oo]bj/**",
+                ".template.config/**/*",
+                "**/*.filelist",
+                "**/*.user",
+                "**/*.lock.json",
+                "**/node_modules/**",
+                "ClientApp/dist/**"
+            ]
+        }
+    ],
     "postActions": [
         {
             "description": "Restore npm packages for ClientApp on Windows",
