@@ -110,3 +110,6 @@ out/
 
 # Ignore JetBrains project files
 .idea/
+
+# Ignore local AI assistant instructions
+CLAUDE.md
