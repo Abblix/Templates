@@ -6,6 +6,7 @@ using Abblix.Oidc.Server.Features.UserInfo;
 
 namespace OpenIDProviderApp;
 
+#warning Dev-only: passwords are stored in plaintext; persist a salted hash instead (e.g. ASP.NET Identity PasswordHasher). https://docs.abblix.com/docs/aspnet-identity-integration
 /// <summary>
 /// Represents user information, including subject identifier and profile attributes like name and email.
 /// </summary>
@@ -71,6 +72,7 @@ public class TestUserStorage(params UserInfo[] users) : IUserInfoProvider
         string password,
         [NotNullWhen(true)] out string? subject)
     {
+        #warning Dev-only: plaintext password check with no lockout; verify a salted hash and add rate-limiting for production. https://docs.abblix.com/docs/aspnet-identity-integration
         foreach (var user in users)
         {
             if (user.Email == email && user.Password == password)

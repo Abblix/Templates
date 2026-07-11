@@ -13,6 +13,7 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 builder.Services.AddControllersWithViews();
 
+#warning Dev-only: TestUserStorage is an in-memory demo store; back IUserInfoProvider with a real user database for production. https://docs.abblix.com/docs/aspnet-identity-integration
 // Add the TestUserStorage as a singleton service in the DI container.
 var userInfoStorage = new TestUserStorage(
     // new UserInfo(
@@ -39,6 +40,7 @@ builder.Services.AddOidcServices(options =>
 	//    /*...*/
     //];
 	
+    // For production, register clients in a durable store rather than hardcoding them; the block below is only a demo. See https://docs.abblix.com/docs/durable-client-store
     //options.Clients = new[] {
     //    new ClientInfo(/*...*/) {
     //        ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash(/*...*/) }],
@@ -56,7 +58,7 @@ builder.Services.AddOidcServices(options =>
 	// The following URL leads to Login action of AuthController
     options.LoginUri = new Uri("/Auth/Login", UriKind.Relative);
 	
-	// The following line generates a new key for token signing. Replace it if you want to use your own keys.
+    #warning Dev-only: signing key is regenerated on every startup; provide a persistent, shared key for production via a custom IAuthServiceKeysProvider. https://docs.abblix.com/docs/signing-key-persistence
     options.SigningKeys = [JsonWebKeyFactory.CreateRsa(PublicKeyUsages.Signature)];
 });
 
@@ -67,7 +69,7 @@ builder.Services
     .AddAuthentication()
     .AddCookie();
 
-// NOTE! This code is for demonstration purposes only. Do not use MemoryCache as a Distributed cache implementation in production environment.
+#warning Dev-only: in-memory cache is per-process and lost on restart; use a distributed cache (Redis/SQL) in production. https://docs.abblix.com/docs/choosing-a-cache-backend
 builder.Services
     .AddDistributedMemoryCache();
 
