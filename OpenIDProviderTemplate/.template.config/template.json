@@ -13,6 +13,7 @@
     "precedence": "0",
     "identity": "Abblix.OpenIDProviderTemplate",
     "sourceName": "OpenIDProviderApp",
+    "defaultName": "OpenIDProvider",
     "shortName": "abblix-oidc-server",
     "aliases": [
         "oidc-server",

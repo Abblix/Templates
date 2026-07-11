@@ -14,6 +14,7 @@
     "precedence": "0",
     "identity": "Abblix.ReactTemplate",
     "sourceName": "ReactTemplate",
+    "defaultName": "ReactApp",
     "shortName": "abblix-react",
     "aliases": [
         "react-net10",
