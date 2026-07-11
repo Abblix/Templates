@@ -1,0 +1,117 @@
+name: Publish templates to NuGet
+
+# Manual-only publish of the Abblix.Templates package to NuGet.org.
+# The package version is set explicitly by <PackageVersion> in
+# Abblix.Templates.csproj (no MinVer here) — bump it there before running.
+# NuGet.org rejects re-upload of an existing version; --skip-duplicate keeps a
+# re-run idempotent rather than failing.
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Pack and upload the artifact only; do not attest or push to NuGet.org'
+        required: false
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+concurrency:
+  # Pushing to the public NuGet feed mutates external state — never cancel a run
+  # mid-push (it would leave a partial upload); queue the next dispatch instead.
+  group: publish-templates
+  cancel-in-progress: false
+
+jobs:
+  publish:
+    name: Pack and publish Abblix.Templates
+    runs-on: ubuntu-latest
+    # NuGet.org publish sits behind the environment approval gate: the
+    # NUGET_API_KEY secret is unreachable until a reviewer approves the run.
+    environment: publish-packages
+    # 10m override on the 5m baseline: NuGet.org index sync after push can lag.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # Sigstore OIDC for build-provenance attestation
+      attestations: write # record SLSA L3 provenance in the repo
+    steps:
+      - name: Harden runner (audit egress)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+        timeout-minutes: 3
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+        timeout-minutes: 3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: '10.0'
+        timeout-minutes: 3
+
+      - name: Pack
+        run: dotnet pack Abblix.Templates.csproj -c Release -o nupkg
+        timeout-minutes: 3
+
+      - name: Upload package artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nupkg
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+        timeout-minutes: 3
+
+      - name: Attest build provenance
+        # Only for real publishes — provenance records repo attestation state,
+        # so a dry run must not leave an attestation for an unpublished package.
+        if: ${{ !inputs.dry_run }}
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: 'nupkg/*.nupkg'
+        timeout-minutes: 3
+
+      - name: Push to NuGet.org
+        if: ${{ !inputs.dry_run }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+        run: |
+          set -euo pipefail
+          for pkg in nupkg/*.nupkg; do
+            echo "Publishing $(basename "$pkg") to nuget.org..."
+            dotnet nuget push "$pkg" \
+              --api-key "$NUGET_API_KEY" \
+              --source https://api.nuget.org/v3/index.json \
+              --skip-duplicate
+          done
+        timeout-minutes: 5
+
+      - name: Summary
+        run: |
+          set -euo pipefail
+          PKG=$(find nupkg -maxdepth 1 -name 'Abblix.Templates.*.nupkg' | head -1 || true)
+          if [ -n "$PKG" ]; then
+            VERSION=$(basename "$PKG" .nupkg | sed 's|^Abblix.Templates.||')
+            {
+              echo "## Templates package packed"
+              echo ""
+              echo "Package: \`$(basename "$PKG")\`"
+              echo "Version: \`$VERSION\`"
+              if [ "${DRY_RUN}" = "true" ]; then
+                echo ""
+                echo "Dry run: not pushed to NuGet.org."
+              else
+                echo ""
+                echo "Pushed to https://www.nuget.org/packages/Abblix.Templates"
+              fi
+            } >> "$GITHUB_STEP_SUMMARY"
+          fi
+        env:
+          DRY_RUN: ${{ inputs.dry_run }}
+        timeout-minutes: 3
