@@ -26,6 +26,22 @@
         "type": "project"
     },
     "preferNameDirectory": true,
+    "symbols": {
+        "HttpsPort": {
+            "type": "parameter",
+            "datatype": "integer",
+            "defaultValue": "5000",
+            "replaces": "5000",
+            "description": "Port for the ASP.NET Core host HTTPS endpoint in launchSettings.json."
+        },
+        "SpaProxyPort": {
+            "type": "parameter",
+            "datatype": "integer",
+            "defaultValue": "3000",
+            "replaces": "3000",
+            "description": "Port for the Vite dev server that SpaProxy connects to (SpaProxyServerUrl and vite.config.ts)."
+        }
+    },
     "sources": [
         {
             "source": "./",
