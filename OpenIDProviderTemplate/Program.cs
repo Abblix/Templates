@@ -16,11 +16,15 @@ builder.Services.AddControllersWithViews();
 #warning Dev-only: TestUserStorage is an in-memory demo store; back IUserInfoProvider with a real user database for production. https://docs.abblix.com/docs/aspnet-identity-integration
 // Add the TestUserStorage as a singleton service in the DI container.
 var userInfoStorage = new TestUserStorage(
-    // new UserInfo(
-    //     Subject: /* Unique ID of the user account */,
-    //     Name: /* User name */,
-    //     Email: /* Used as login */,
-    //     Password: /* Prefer strong password */)
+#if (HasSampleUser)
+    // Dev-only sample account seeded from --user / --password so you can sign in
+    // immediately. Scaffold without --user to start with an empty store.
+    new UserInfo(
+        Subject: "SAMPLE_USER_SUBJECT",
+        Name: "Demo User",
+        Email: "SAMPLE_USER_EMAIL",
+        Password: "SAMPLE_USER_PASSWORD")
+#endif
 );
 builder.Services.AddSingleton(userInfoStorage);
 

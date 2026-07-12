@@ -35,7 +35,7 @@
   <ItemGroup>
     <Content Include="Abblix.png" Link="Abblix.png" Pack="true" PackagePath="" />
     <Content Include=".\Nuget\README.md" Link="README.md" Pack="true" PackagePath="" />
-    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\dist\**;**\.idea\**;Nuget\**" />
+    <Content Include="**\*" Exclude=".*\**;*;**\bin\**;**\obj\**;**\node_modules\**;**\dist\**;**\wwwroot\lib\**;**\*.db;**\dataprotection-keys\**;**\.idea\**;Nuget\**" />
     <Compile Remove="**\*" />
   </ItemGroup>
 

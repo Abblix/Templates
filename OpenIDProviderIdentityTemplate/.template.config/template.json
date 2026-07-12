@@ -1,0 +1,110 @@
+{
+    "$schema": "http://json.schemastore.org/template",
+    "author": "abblix.com",
+    "classifications": [
+        "Web",
+        "MVC",
+        "OpenID",
+        "OIDC",
+        "OAuth2.0",
+        "Identity"
+    ],
+    "name": "Abblix OpenID Provider (ASP.NET Identity + EF Core)",
+    "description": "A production-shaped OpenID Provider built on Abblix OIDC Server: ASP.NET Core Identity users on EF Core (SQLite), durable client and signing-key stores, and password hashing. Start a real project from here.",
+    "precedence": "0",
+    "identity": "Abblix.OpenIDProviderIdentityTemplate",
+    "sourceName": "AspNetIdentitySample",
+    "defaultName": "OpenIDProvider",
+    "shortName": "abblix-oidc-server",
+    "aliases": [
+        "oidc-server",
+        "oauth2-server",
+        "openidconnect"
+    ],
+    "tags": {
+        "language": "C#",
+        "type": "project"
+    },
+    "preferNameDirectory": true,
+    "symbols": {
+        "HttpsPort": {
+            "type": "parameter",
+            "datatype": "integer",
+            "defaultValue": "5001",
+            "replaces": "5001",
+            "description": "Port for the HTTPS endpoint in launchSettings.json."
+        },
+        "user": {
+            "type": "parameter",
+            "datatype": "string",
+            "defaultValue": "",
+            "replaces": "SAMPLE_USER_EMAIL",
+            "description": "Email/login of a dev sample user to pre-seed into the Identity store. If omitted, no sample user is created."
+        },
+        "password": {
+            "type": "parameter",
+            "datatype": "string",
+            "defaultValue": "",
+            "replaces": "SAMPLE_USER_PASSWORD",
+            "description": "Password for the --user sample account. If omitted, a random one is generated and printed once on first run. Ignored when --user is omitted."
+        },
+        "HasSampleUser": {
+            "type": "computed",
+            "value": "(user != \"\")"
+        },
+        "HasSamplePassword": {
+            "type": "computed",
+            "value": "(password != \"\")"
+        }
+    },
+    "sources": [
+        {
+            "source": "./",
+            "target": "./",
+            "exclude": [
+                "**/[Bb]in/**",
+                "**/[Oo]bj/**",
+                ".template.config/**/*",
+                "**/*.filelist",
+                "**/*.user",
+                "**/*.lock.json",
+                "ClientAssets/node_modules/**",
+                "wwwroot/lib/**",
+                "**/*.db",
+                "dataprotection-keys/**"
+            ]
+        }
+    ],
+    "postActions": [
+        {
+            "description": "Restore npm packages for ClientAssets on Windows",
+            "manualInstructions": [
+                {
+                    "text": "Run 'npm install' in the ClientAssets directory"
+                }
+            ],
+            "actionId": "3A7C4B45-1F5D-4A30-959A-51B88E82B5D2",
+            "args": {
+                "executable": "cmd",
+                "args": "/c \"cd ClientAssets && npm install\""
+            },
+            "continueOnError": true,
+            "condition": "OS == 'Windows_NT'"
+        },
+        {
+            "description": "Restore npm packages for ClientAssets on Unix-based systems",
+            "manualInstructions": [
+                {
+                    "text": "Run 'npm install' in the ClientAssets directory"
+                }
+            ],
+            "actionId": "3A7C4B45-1F5D-4A30-959A-51B88E82B5D2",
+            "args": {
+                "executable": "sh",
+                "args": "-c \"cd ClientAssets && npm install\""
+            },
+            "continueOnError": true,
+            "condition": "OS != 'Windows_NT'"
+        }
+    ]
+}
