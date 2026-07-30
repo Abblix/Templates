@@ -88,14 +88,18 @@ jobs:
         run: dotnet new install "$RUNNER_TEMP"/nupkg/Abblix.Templates.*.nupkg
         timeout-minutes: 3
 
-      # --allow-scripts on every scaffold below, because `dotnet new` defaults it to Prompt. A template
-      # carrying a script post-action therefore ASKS, and on a runner stdin is at EOF: the read returns
-      # empty, the CLI re-prompts, and it spins at full speed until the job ceiling. That is what ended
-      # both runs this workflow ever had, at exactly 25:00 against a 20m limit, with the step's own 8m
-      # timeout never preempting it - the log filled with tens of thousands of identical lines sharing
-      # one millisecond. No template declares a post-action now (their csproj targets already restore
-      # npm when node_modules is missing, so the actions were duplicating a default), and this flag is
-      # what keeps a re-added one from hanging CI instead of merely running.
+      # No template below may declare a script post-action, and that is a requirement of this workflow
+      # rather than a preference. `dotnet new` defaults such an action to Prompt, and on a runner stdin
+      # is at EOF: the read returns empty, the CLI re-prompts, and it spins at full speed until the job
+      # ceiling. That ended both runs this workflow had before 2026-07-30, at exactly 25:00 against a
+      # 20m limit, with the step's own 8m timeout never preempting it.
+      #
+      # It cannot be guarded with `--allow-scripts` here, which is the counter-intuitive part: the CLI
+      # offers that option only WHILE a template declares such an action, so on these templates it is
+      # rejected outright and the step dies with exit 127. The option and the hazard appear and vanish
+      # together. What keeps CI safe is therefore the absence, plus the reason it can stay absent: each
+      # template's csproj already restores npm when node_modules is missing, so a post-action doing the
+      # same buys nothing and costs an interactive prompt.
       - name: OIDC provider (Identity + EF) - scaffold, build, serve discovery
         # The production template: Identity + EF/SQLite users, durable client and
         # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
@@ -104,7 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc"
-          dotnet new abblix-oidc-server -n SmokeOidc -o "$work" --allow-scripts Yes
+          dotnet new abblix-oidc-server -n SmokeOidc -o "$work"
           dotnet build "$work" -c Release
           dotnet "$work/bin/Release/net10.0/SmokeOidc.dll" --urls http://localhost:5080 &
           pid=$!
@@ -126,7 +130,7 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc-gs"
-          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work" --allow-scripts Yes
+          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work"
           dotnet build "$work" -c Release
           dotnet "$work/bin/Release/net10.0/SmokeOidcGs.dll" --urls http://localhost:5083 &
           pid=$!
@@ -150,7 +154,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/react"
           pub="$RUNNER_TEMP/react-pub"
-          dotnet new abblix-react -n SmokeReact -o "$work" --allow-scripts Yes
+          dotnet new abblix-react -n SmokeReact -o "$work"
           dotnet publish "$work" -c Release -o "$pub"
           test -f "$pub/wwwroot/index.html" || { echo "::error::SPA index.html not published to wwwroot"; exit 1; }
           dotnet "$pub/SmokeReact.dll" --urls http://localhost:5081 &
