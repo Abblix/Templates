@@ -44,10 +44,11 @@ jobs:
   smoke:
     name: Scaffold, build and run both templates
     runs-on: ubuntu-latest
-    # 20m override on the 5m baseline: one job packs the template, then for each
-    # of the two templates does a cold dotnet restore, npm install, vite build,
-    # publish and a live host run. Tighten to observed + 20% after the first run.
-    timeout-minutes: 20
+    # Back to the 5m baseline, with no override, because the whole job is now MEASURED at 61s on a
+    # cold runner - packing, three scaffolds, three builds, an npm install, a vite build, a publish and
+    # three live host runs. The old 20m was not a measurement of anything: no run had ever finished, so
+    # the number was picked to be safe, and that is exactly what let a hung run burn 25 minutes twice.
+    timeout-minutes: 5
     steps:
       - name: Harden runner (audit egress)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -82,7 +83,8 @@ jobs:
 
       - name: Pack templates
         run: dotnet pack Abblix.Templates.csproj -c Release -o "$RUNNER_TEMP/nupkg"
-        timeout-minutes: 5
+        # Baseline 3m; measured 12s.
+        timeout-minutes: 3
 
       - name: Install template package from .nupkg
         run: dotnet new install "$RUNNER_TEMP"/nupkg/Abblix.Templates.*.nupkg
@@ -131,7 +133,8 @@ jobs:
           grep -q '"issuer"' disco.json || { echo "::error::discovery response has no issuer"; exit 1; }
           curl -sf http://localhost:5080/.well-known/jwks -o jwks.json 2>/dev/null || true
           echo "OIDC provider template OK"
-        timeout-minutes: 8
+        # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
+        timeout-minutes: 3
 
       - name: OIDC getting-started (in-memory) - scaffold, build, serve discovery
         # The learning template: in-memory stores and an ephemeral key, no npm.
@@ -154,7 +157,8 @@ jobs:
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
           grep -q '"issuer"' disco-gs.json || { echo "::error::getting-started discovery has no issuer"; exit 1; }
           echo "OIDC getting-started template OK"
-        timeout-minutes: 5
+        # Baseline 3m; measured 5s.
+        timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
         # dotnet publish runs the PublishRunWebpack target (npm install + vite
@@ -181,4 +185,5 @@ jobs:
           [ "$ok" = 1 ] || { echo "::error::React host did not serve root"; exit 1; }
           grep -q 'id="root"' root.html || { echo "::error::served root is not the SPA shell"; exit 1; }
           echo "React template OK"
-        timeout-minutes: 8
+        # Baseline 3m; measured 7s.
+        timeout-minutes: 3
