@@ -110,7 +110,16 @@ jobs:
           work="$RUNNER_TEMP/oidc"
           dotnet new abblix-oidc-server -n SmokeOidc -o "$work"
           dotnet build "$work" -c Release
-          dotnet "$work/bin/Release/net10.0/SmokeOidc.dll" --urls http://localhost:5080 &
+          # From the OUTPUT directory, not from the checkout. appsettings.json sits next to the dll
+          # and ASP.NET Core resolves it against the working directory, so starting the app anywhere
+          # else loads NO configuration: every connection string comes back null, EF hands SQLite an
+          # empty data source, and an empty data source means a private temporary database per
+          # connection. EnsureCreated then creates the tables in one throwaway database and the next
+          # query opens another, so the app dies on "no such table: SigningKeys" and the whole thing
+          # reads as a broken template. Measured both ways: from the checkout, not one .db file exists
+          # anywhere afterwards; from here, discovery answers and oidc.db/users.db are on disk.
+          cd "$work/bin/Release/net10.0"
+          dotnet ./SmokeOidc.dll --urls http://localhost:5080 &
           pid=$!
           ok=0
           for _ in $(seq 1 40); do
@@ -132,7 +141,9 @@ jobs:
           work="$RUNNER_TEMP/oidc-gs"
           dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work"
           dotnet build "$work" -c Release
-          dotnet "$work/bin/Release/net10.0/SmokeOidcGs.dll" --urls http://localhost:5083 &
+          # From the output directory, for the reason spelled out in the step above.
+          cd "$work/bin/Release/net10.0"
+          dotnet ./SmokeOidcGs.dll --urls http://localhost:5083 &
           pid=$!
           ok=0
           for _ in $(seq 1 30); do
@@ -157,7 +168,9 @@ jobs:
           dotnet new abblix-react -n SmokeReact -o "$work"
           dotnet publish "$work" -c Release -o "$pub"
           test -f "$pub/wwwroot/index.html" || { echo "::error::SPA index.html not published to wwwroot"; exit 1; }
-          dotnet "$pub/SmokeReact.dll" --urls http://localhost:5081 &
+          # From the publish directory, for the reason spelled out in the first template step.
+          cd "$pub"
+          dotnet ./SmokeReact.dll --urls http://localhost:5081 &
           pid=$!
           ok=0
           for _ in $(seq 1 30); do
