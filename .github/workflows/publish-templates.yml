@@ -66,6 +66,7 @@ jobs:
           name: nupkg
           path: nupkg/*.nupkg
           if-no-files-found: error
+          retention-days: 7
         timeout-minutes: 3
 
       - name: Attest build provenance
