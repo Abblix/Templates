@@ -60,13 +60,15 @@ jobs:
         run: dotnet pack Abblix.Templates.csproj -c Release -o nupkg
         timeout-minutes: 3
 
-      - name: Upload package artifact
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: nupkg
-          path: nupkg/*.nupkg
-          if-no-files-found: error
-          retention-days: 7
+      # The package is built, attested and pushed inside this one job, so nothing downstream reads
+      # a stored copy. A dry run is inspected from this listing; an artifact would spend the shared
+      # Actions storage quota for a file nobody downloads.
+      - name: List package contents
+        run: |
+          set -euo pipefail
+          for f in nupkg/*.nupkg; do
+            python3 -m zipfile -l "$f"
+          done
         timeout-minutes: 3
 
       - name: Attest build provenance
