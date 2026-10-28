@@ -7,7 +7,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/Abblix/Templates)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-⭐ Star us on GitHub — it motivates us a lot!
+⭐ Star us on GitHub - it motivates us a lot!
 
 [![Share](https://img.shields.io/badge/share-000000?logo=x&logoColor=white)](https://x.com/intent/tweet?text=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Templates%20%23ASPNetCore%20%23Templates%20%23DotNet)
 [![Share](https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/Abblix/Templates)
@@ -135,7 +135,7 @@ Understanding the structure of your project is crucial for effective development
 
 ## 🔧 Configuration
 
-The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, and commented-out scopes, resources and clients to fill in. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`, or the port given with `--https-port` when the project is created. The server matches a request to the tenant by the issuer's host and path, so open the app at `localhost`: at `127.0.0.1` the OpenID endpoints answer 404. `appsettings.json` and `appsettings.Development.json` hold only the logging settings.
+The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, and commented-out scopes, resources and clients to fill in. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`, or the port given with `--https-port` when the project is created. The server matches a request to the tenant by the issuer's host and path, so open the app at `localhost`: at `127.0.0.1` the OpenID endpoints answer 404. `appsettings.json` and `appsettings.Development.json` hold only the logging and host filtering settings.
 
 Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
 
@@ -159,7 +159,7 @@ dotnet build
 dotnet run
 ```
 
-You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`. While the issuer is an `https` address, a plain HTTP request to the OpenID endpoints is redirected to HTTPS.
+You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
 
 ## 🎨 Customization
 

@@ -6,7 +6,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/Abblix/Templates)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-⭐ Star us on GitHub — it motivates us a lot!
+⭐ Star us on GitHub - it motivates us a lot!
 
 [![Share](https://img.shields.io/badge/share-000000?logo=x&logoColor=white)](https://x.com/intent/tweet?text=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Templates%20%23ASPNetCore%20%23Templates%20%23DotNet)
 [![Share](https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/Abblix/Templates)
@@ -29,7 +29,7 @@ Two templates for building an OpenID Connect Provider using ASP.NET Core in conj
 
 Before you begin using the Abblix ASP.NET Core Templates, ensure that your development environment is properly set up with the following tools:
 
-- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. The OpenID Connect Provider templates target .NET 11; the React template targets .NET 10, which the .NET 11 SDK builds as well.
+- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. The OpenID Connect Provider templates target .NET 11; the React template targets .NET 10, which the .NET 11 SDK builds as well, and runs on the [ASP.NET Core 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0), installed beside it.
 - [Node.js and npm](https://nodejs.org/): Node.js is required to manage the frontend dependencies for projects using React and Vite. npm (Node Package Manager) comes bundled with Node.js and is used to install and manage these dependencies. Having Node.js and npm installed ensures that you can seamlessly integrate and build the frontend parts of your application, especially when using modern JavaScript frameworks and tools like React and Vite.
 
 ## 📝 Installing the Templates
