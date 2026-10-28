@@ -1,12 +1,12 @@
 using System.Text.Json.Nodes;
+using Abblix.Oidc.Server.Common.Configuration;
+using Abblix.Oidc.Server.Common.Interfaces;
 using Abblix.Oidc.Server.Features.RandomGenerators;
 using Abblix.Oidc.Server.Features.UserAuthentication;
 using Abblix.Oidc.Server.Model;
-using Abblix.Oidc.Server.Mvc;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
-using Path = Abblix.Oidc.Server.Mvc.Path;
 using SignInResult = Microsoft.AspNetCore.Identity.SignInResult;
 using UriBuilder = Abblix.Utils.UriBuilder;
 
@@ -27,7 +27,7 @@ public class AuthController : Controller
     public async Task<IActionResult> Login(
         [FromServices] IAuthSessionService authService,
         [FromServices] ISessionIdGenerator sessionIdGenerator,
-        [FromServices] IUriResolver uriResolver,
+        [FromServices] IOidcEndpointResolver endpointResolver,
         [FromServices] UserManager<IdentityUser> userManager,
         [FromServices] SignInManager<IdentityUser> signIn,
         [FromServices] TimeProvider clock,
@@ -71,8 +71,9 @@ public class AuthController : Controller
         // Sign in the user using the authentication service
         await authService.SignInAsync(authSession);
 
-        // Redirect the user to the authorization endpoint URL, recovering the OIDC flow
-        var authorizeUrl = new UriBuilder(uriResolver.Content(Path.Authorize))
+        // Redirect the user to the authorization endpoint URL, recovering the OIDC flow. Every endpoint is
+        // enabled here, as the defaults leave them, so the resolver always has an address to return.
+        var authorizeUrl = new UriBuilder(endpointResolver.Resolve(OidcEndpoints.Authorize)!)
             { Query = { [AuthorizationRequest.Parameters.RequestUri] = requestUri } };
         return Redirect(authorizeUrl);
     }
