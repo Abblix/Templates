@@ -147,8 +147,12 @@ jobs:
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::OIDC discovery endpoint did not respond"; exit 1; }
-          grep -q '"issuer"' disco.json || { echo "::error::discovery response has no issuer"; exit 1; }
+          jq -e '.issuer == "https://localhost:5001"' disco.json > /dev/null ||
+            { echo "::error::discovery does not name https://localhost:5001 as its issuer"; exit 1; }
           [ "$jwks" = 1 ] || { echo "::error::OIDC jwks endpoint did not respond"; exit 1; }
+          # Exactly one: the template persists one signing key, and a provider serving none signs nothing.
+          jq -e '.keys | length == 1' jwks.json > /dev/null ||
+            { echo "::error::jwks does not serve exactly one signing key"; exit 1; }
           echo "OIDC provider template OK"
         # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
         timeout-minutes: 3
@@ -171,10 +175,17 @@ jobs:
             if curl -skf https://localhost:5001/.well-known/openid-configuration -o disco-gs.json; then ok=1; break; fi
             sleep 1
           done
+          jwks=0
+          curl -skf https://localhost:5001/.well-known/jwks -o jwks-gs.json && jwks=1
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
-          grep -q '"issuer"' disco-gs.json || { echo "::error::getting-started discovery has no issuer"; exit 1; }
+          jq -e '.issuer == "https://localhost:5001"' disco-gs.json > /dev/null ||
+            { echo "::error::getting-started discovery does not name https://localhost:5001 as its issuer"; exit 1; }
+          [ "$jwks" = 1 ] || { echo "::error::getting-started jwks endpoint did not respond"; exit 1; }
+          # Exactly one: the template generates one signing key at startup.
+          jq -e '.keys | length == 1' jwks-gs.json > /dev/null ||
+            { echo "::error::getting-started jwks does not serve exactly one signing key"; exit 1; }
           echo "OIDC getting-started template OK"
         # Baseline 3m; measured 5s.
         timeout-minutes: 3
