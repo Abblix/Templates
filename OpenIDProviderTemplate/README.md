@@ -135,7 +135,7 @@ Understanding the structure of your project is crucial for effective development
 
 ## 🔧 Configuration
 
-The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, and commented-out scopes, resources and clients to fill in. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`, or the port given with `--https-port` when the project is created. The server matches a request to the tenant by the issuer's host and path, so open the app at `localhost`: at `127.0.0.1` the OpenID endpoints answer 404. `appsettings.json` and `appsettings.Development.json` hold only the logging and host filtering settings.
+The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, and commented-out scopes, resources and clients to fill in. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`, or the port given with `--https-port` when the project is created. `appsettings.json` and `appsettings.Development.json` hold only the logging and host filtering settings.
 
 Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
 

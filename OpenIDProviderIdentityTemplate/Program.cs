@@ -4,7 +4,6 @@ using System.Text;
 using System.Text.Json;
 using Abblix.Jwt;
 using Abblix.Oidc;
-using Abblix.Oidc.Server.AspNetCore.MultiTenancy;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Common.Interfaces;
 using Abblix.Oidc.Server.Features.ClientInformation;
@@ -58,7 +57,7 @@ var tenant = new TenantDefinition
 {
     Id = "main",
 
-    // The address the app is served on: at any other host or path, the OpenID endpoints answer 404
+    // The address the app is served on, written into every token it issues
     Issuer = new Uri("https://localhost:5001"),
 
     Resources =
@@ -275,9 +274,7 @@ if (!app.Environment.IsDevelopment())
 app.UseHttpsRedirection();
 app.UseStaticFiles();
 
-// Resolves each request to its tenant, then routes it: it takes the place of UseRouting, since a route
-// matched before the tenant is known would take the request with no tenant to serve it.
-app.UseMultiTenancy();
+app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
 
