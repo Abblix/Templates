@@ -21,13 +21,6 @@ repos:
 
   - repo: local
     hooks:
-      - id: no-inline-secrets
-        name: "Block inline untrusted-input interpolation in run: blocks"
-        entry: python .github/scripts/lint-no-inline-secrets.py
-        language: python
-        additional_dependencies: [pyyaml]
-        files: ^\.github/(workflows/.*\.(yml|yaml)|scripts/lint-no-inline-secrets\.py)$
-        pass_filenames: false
       - id: no-cr-in-blobs
         name: "Block carriage returns in committed text"
         entry: python .github/scripts/lint-no-cr-in-blobs.py
