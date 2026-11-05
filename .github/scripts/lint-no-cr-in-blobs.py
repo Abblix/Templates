@@ -22,10 +22,10 @@ output - and both disagreed with reality on two committed PDFs, which are stored
 harmlessly. A check that flags files nobody can fix teaches people to wave it away, and that
 habit is what greets the true positive.
 
-WHERE THIS FILE COMES FROM. The copy under Abblix/Infrastructure at
-scripts/hooks/lint-no-cr-in-blobs.py is the one to edit; every other repository carries its
-own copy of it. pre-commit can pull a hook straight from another repository, but Oidc.Server
-is public and a contributor cloning it cannot reach a private hooks repository - and one
+WHERE THIS FILE COMES FROM. This is a copy: the one to edit lives in a private repository of
+the organization, and every other repository carries its own copy of it. pre-commit can pull
+a hook straight from another repository, but Oidc.Server is public and a contributor cloning
+it cannot reach a private hooks repository - and one
 repository guarded differently from the rest is worse than uniform copies. Change the
 canonical file, then copy it over the others in the same pass.
 
