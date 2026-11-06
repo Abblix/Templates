@@ -65,7 +65,19 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
-          dotnet-version: '10.0'
+          # Both, because the templates do not share one: the OpenID provider templates target .NET 11, which
+          # Abblix OIDC Server 3.0 requires, and the React template still targets .NET 10, whose runtime its
+          # published host needs to start.
+          dotnet-version: |
+            10.0.x
+            11.0.x
+        timeout-minutes: 3
+
+      - name: Create the ASP.NET Core development certificate
+        # The OpenID provider templates serve their issuer over HTTPS, which their OpenID endpoints require, and
+        # with no certificate configured Kestrel serves HTTPS with this one. The runner does not trust it, so
+        # the checks below call curl with -k.
+        run: dotnet dev-certs https
         timeout-minutes: 3
 
       - name: Setup Node
@@ -120,18 +132,27 @@ jobs:
           # query opens another, so the app dies on "no such table: SigningKeys" and the whole thing
           # reads as a broken template. Measured both ways: from the checkout, not one .db file exists
           # anywhere afterwards; from here, discovery answers and oidc.db/users.db are on disk.
-          cd "$work/bin/Release/net10.0"
-          dotnet ./SmokeOidc.dll --urls http://localhost:5080 &
+          cd "$work/bin/Release/net11.0"
+          # At the address the template names as its issuer, over HTTPS, which its OpenID endpoints require.
+          dotnet ./SmokeOidc.dll --urls https://localhost:5001 &
           pid=$!
           ok=0
           for _ in $(seq 1 40); do
-            if curl -sf http://localhost:5080/.well-known/openid-configuration -o disco.json; then ok=1; break; fi
+            if curl -skf https://localhost:5001/.well-known/openid-configuration -o disco.json; then ok=1; break; fi
             sleep 1
           done
+          jwks=0
+          curl -skf https://localhost:5001/.well-known/jwks -o jwks.json && jwks=1
+          # Waited for, so the next template can take the same address.
           kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::OIDC discovery endpoint did not respond"; exit 1; }
-          grep -q '"issuer"' disco.json || { echo "::error::discovery response has no issuer"; exit 1; }
-          curl -sf http://localhost:5080/.well-known/jwks -o jwks.json 2>/dev/null || true
+          jq -e '.issuer == "https://localhost:5001"' disco.json > /dev/null ||
+            { echo "::error::discovery does not name https://localhost:5001 as its issuer"; exit 1; }
+          [ "$jwks" = 1 ] || { echo "::error::OIDC jwks endpoint did not respond"; exit 1; }
+          # Exactly one: the template persists one signing key, and a provider serving none signs nothing.
+          jq -e '.keys | length == 1' jwks.json > /dev/null ||
+            { echo "::error::jwks does not serve exactly one signing key"; exit 1; }
           echo "OIDC provider template OK"
         # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
         timeout-minutes: 3
@@ -145,17 +166,26 @@ jobs:
           dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work"
           dotnet build "$work" -c Release
           # From the output directory, for the reason spelled out in the step above.
-          cd "$work/bin/Release/net10.0"
-          dotnet ./SmokeOidcGs.dll --urls http://localhost:5083 &
+          cd "$work/bin/Release/net11.0"
+          # At the template's issuer over HTTPS, for the reason given in the step above.
+          dotnet ./SmokeOidcGs.dll --urls https://localhost:5001 &
           pid=$!
           ok=0
           for _ in $(seq 1 30); do
-            if curl -sf http://localhost:5083/.well-known/openid-configuration -o disco-gs.json; then ok=1; break; fi
+            if curl -skf https://localhost:5001/.well-known/openid-configuration -o disco-gs.json; then ok=1; break; fi
             sleep 1
           done
+          jwks=0
+          curl -skf https://localhost:5001/.well-known/jwks -o jwks-gs.json && jwks=1
           kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
-          grep -q '"issuer"' disco-gs.json || { echo "::error::getting-started discovery has no issuer"; exit 1; }
+          jq -e '.issuer == "https://localhost:5001"' disco-gs.json > /dev/null ||
+            { echo "::error::getting-started discovery does not name https://localhost:5001 as its issuer"; exit 1; }
+          [ "$jwks" = 1 ] || { echo "::error::getting-started jwks endpoint did not respond"; exit 1; }
+          # Exactly one: the template generates one signing key at startup.
+          jq -e '.keys | length == 1' jwks-gs.json > /dev/null ||
+            { echo "::error::getting-started jwks does not serve exactly one signing key"; exit 1; }
           echo "OIDC getting-started template OK"
         # Baseline 3m; measured 5s.
         timeout-minutes: 3
