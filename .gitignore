@@ -113,3 +113,4 @@ out/
 
 # Ignore local AI assistant instructions
 CLAUDE.md
+AGENTS.md
