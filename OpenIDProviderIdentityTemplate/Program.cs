@@ -41,7 +41,8 @@ builder.Services
 // algorithm without a recompile.
 builder.Services.Configure<PasswordHasherOptions>(builder.Configuration.GetSection("PasswordHasher"));
 
-// The library ships no IUserInfoProvider: this registration is mandatory, not optional.
+// Without this registration the server falls back to a stand-in that knows no user: no ID token is issued and
+// UserInfo answers invalid_token.
 builder.Services.AddScoped<IUserInfoProvider, IdentityUserInfoProvider>();
 
 // Add services to the container.
@@ -93,9 +94,9 @@ builder.Services.AddDataProtection()
 #warning The Data Protection key ring above is a LOCAL, UNENCRYPTED folder: single-node and unprotected. For real deployments persist it to a store every instance shares and add ProtectKeysWith an X.509 certificate or a KMS, or a fresh pod cannot decrypt the stored signing key. See https://docs.abblix.com/docs/signing-key-persistence#encrypting-the-stored-key-at-rest
 
 // Signing keys: the database-backed provider takes the place of the server's default, which reads each
-// tenant's SigningKeys from its definition. The server adds its default only when no provider is
-// registered, and leaves a provider of the host's own to answer for each tenant's keys, so the tenant
-// above declares none.
+// tenant's SigningKeys from its definition. Registered after AddOidcServices, it replaces that default,
+// since the last registration of a service is the one resolved, and answers for each tenant's keys, so
+// the tenant above declares none.
 builder.Services.AddSingleton<IAuthServiceKeysProvider, DatabaseKeysProvider>();
 
 // Client store: the server keeps its own, which serves the clients the tenant declares first, and keeps

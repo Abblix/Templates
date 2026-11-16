@@ -10,9 +10,9 @@
   </PropertyGroup>
   <ItemGroup>
 	<PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.0.0" />
-	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
-	<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
+	<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
   <ItemGroup>
     <!-- Keep the npm project visible in the IDE but out of the .NET item graph. -->

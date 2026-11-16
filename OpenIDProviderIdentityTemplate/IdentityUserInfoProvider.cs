@@ -8,7 +8,7 @@ namespace AspNetIdentitySample;
 
 /// <summary>
 /// Turns an authenticated subject into OIDC claims using the ASP.NET Core Identity user store.
-/// The library ships no IUserInfoProvider of its own, so this registration is mandatory.
+/// Without it, the server's stand-in knows no user and no ID token is issued.
 /// </summary>
 public sealed class IdentityUserInfoProvider(UserManager<IdentityUser> users) : IUserInfoProvider
 {

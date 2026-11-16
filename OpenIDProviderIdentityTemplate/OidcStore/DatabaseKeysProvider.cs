@@ -15,8 +15,8 @@ namespace AspNetIdentitySample.OidcStore;
 /// already in circulation).
 /// </summary>
 /// <remarks>
-/// Registered as a singleton after <c>AddOidcServices</c>; the server adds its own provider only when none
-/// is registered, so this one serves the keys, and the tenant declares no <c>SigningKeys</c> of its own.
+/// Registered as a singleton after <c>AddOidcServices</c>, so it replaces the server's own provider (the last
+/// registration of a service is the one resolved) and serves the keys; the tenant declares no <c>SigningKeys</c>.
 /// Each tenant's keys are the rows under its id and generation, so no tenant publishes or signs with
 /// another's. A singleton cannot hold a scoped <c>DbContext</c>, so it opens one per call through
 /// <see cref="IDbContextFactory{TContext}"/>.
