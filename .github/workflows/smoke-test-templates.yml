@@ -8,7 +8,7 @@ name: Smoke test templates
 on:
   workflow_dispatch:
   pull_request:
-    branches: [master]
+    branches: [master, 'release/**']
     paths:
       # OpenIDProviderIdentityTemplate is the directory behind the `abblix-oidc-server` short name, the
       # flagship template this workflow scaffolds first. It was absent from this list, so a change to it
@@ -114,15 +114,19 @@ jobs:
       # together. What keeps CI safe is therefore the absence, plus the reason it can stay absent: each
       # template's csproj already restores npm when node_modules is missing, so a post-action doing the
       # same buys nothing and costs an interactive prompt.
-      - name: OIDC provider (Identity + EF) - scaffold, build, serve discovery
+      - name: OIDC provider (Identity + EF) - scaffold, build, send its requests
         # The production template: Identity + EF/SQLite users, durable client and
         # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
         # runs it (seeds SQLite on first start; no --user so no console pause) and
         # sends the requests of its requests.http: discovery, jwks, a client credentials token and its
-        # introspection. 8m: cold npm install, vite build, EF restore.
+        # introspection. The heaviest step: cold npm install, vite build, EF restore.
         # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
+        env:
+          # The template seeds its demo clients, console_client among them, only in Development; the host
+          # otherwise starts as Production and refuses the token request below.
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc"
@@ -160,7 +164,7 @@ jobs:
             curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
               -d client_id=console_client -d client_secret=secret -o introspection.json && introspection=1
           fi
-          # Its secret is published, so console_client must get no token for the registered API.
+          # Holds only while https://localhost:5004 is a registered resource: an unknown one is refused too.
           refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
             -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
           # Waited for, so the next template can take the same address.
@@ -187,9 +191,8 @@ jobs:
         # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
         timeout-minutes: 3
 
-      - name: OIDC getting-started (in-memory) - scaffold, build, serve discovery
+      - name: OIDC getting-started (in-memory) - scaffold, build, send its requests
         # The learning template: in-memory stores and an ephemeral key, no npm.
-        # 5m: dotnet restore of Abblix.Oidc.Server.Mvc plus build and a host run.
         # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
         # generator's range, so a project that ignored the option could not pass by chance.
         run: |
@@ -244,7 +247,7 @@ jobs:
       - name: React template - scaffold, publish, serve SPA
         # dotnet publish runs the PublishRunWebpack target (npm install + vite
         # build) and copies dist into wwwroot; then serve the published host and
-        # confirm it returns the SPA shell. 8m: cold npm install and vite build
+        # confirm it returns the SPA shell. Cold npm install and vite build
         # dominate.
         run: |
           set -euo pipefail
