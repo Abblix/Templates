@@ -1,4 +1,5 @@
 using System.Text.Json.Nodes;
+using Abblix.Oidc.Server.Features.MultiTenancy;
 using Abblix.Oidc.Server.Features.UserAuthentication;
 using Abblix.Oidc.Server.Features.UserInfo;
 using Microsoft.AspNetCore.Identity;
@@ -7,11 +8,14 @@ namespace AspNetIdentitySample;
 
 /// <summary>
 /// Turns an authenticated subject into OIDC claims using the ASP.NET Core Identity user store.
-/// The library ships no IUserInfoProvider of its own, so this registration is mandatory.
+/// Without it, the server's stand-in knows no user and no ID token is issued.
 /// </summary>
 public sealed class IdentityUserInfoProvider(UserManager<IdentityUser> users) : IUserInfoProvider
 {
-    public async Task<JsonObject?> GetUserInfoAsync(AuthSession authSession, IEnumerable<string> requestedClaims)
+    // The server hands over the tenant the claims are released at; this sample serves one tenant, whose
+    // users are the whole Identity store, so the provider does not look at it.
+    public async Task<JsonObject?> GetUserInfoAsync(
+        TenantDefinition tenant, AuthSession authSession, IEnumerable<string> requestedClaims)
     {
         // the subject is the Identity user id: set at login, resolved here
         var user = await users.FindByIdAsync(authSession.Subject);
