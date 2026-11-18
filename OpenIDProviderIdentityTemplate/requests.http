@@ -28,7 +28,9 @@ GET {{host}}/.well-known/openid-configuration
 GET {{host}}/.well-known/jwks
 
 ### Access token from the client credentials grant
-# Answers 200 with access_token, token_type Bearer and expires_in: a token for the client itself.
+# Answers 200 with access_token, token_type Bearer and expires_in. The token is addressed to this provider
+# (its aud is the issuer), so no API registered with the provider accepts it; the request names no scope,
+# so the token carries none.
 POST {{host}}/connect/token
 Content-Type: application/x-www-form-urlencoded
 

@@ -68,8 +68,8 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
             TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
             AllowedGrantTypes = [GrantTypes.ClientCredentials],
 
-            // No resource: its secret is published with this template, so it must never get a token for an API
-            // registered in Resources, only one addressed to itself.
+            // No resource: its secret is published with this template, so its token is addressed only to this
+            // provider (the issuer), and no API registered in Resources accepts it.
             AllowedResources = [],
         },
 

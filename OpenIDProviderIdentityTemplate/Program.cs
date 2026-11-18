@@ -217,9 +217,9 @@ using (var scope = app.Services.CreateScope())
 #endif
 
     // Seed the OIDC store so the sample runs out of the box: a signing key that survives restarts,
-    // and two demo clients, test_client and console_client. On the next run all three already exist, so the
-    // same key keeps validating tokens issued before the restart. A real deployment replaces EnsureCreated with EF migrations,
-    // and keeps signing keys in an HSM or KMS rather than the database (see the #warning on PersistedSigningKey).
+    // and, in Development, two demo clients, test_client and console_client. On the next run they already
+    // exist, so the same key keeps validating tokens issued before the restart. A real deployment replaces
+    // EnsureCreated with EF migrations, and keeps signing keys in an HSM or KMS rather than the database (see the #warning on PersistedSigningKey).
     var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
     var oidcStoreFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<OidcStoreDbContext>>();
@@ -250,37 +250,42 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    // The test client, written through the server's client store as a registration would be. A
-    // registration holds the identifier of the registration access token that manages it. No token is
-    // issued for a seeded client, so it holds the identifier of one never issued, and no request to the
-    // RFC 7592 configuration endpoint can change or remove it. On the next run the client is already
-    // held, so the add is refused and the stored row is kept as it is.
-    var clients = scope.ServiceProvider.GetRequiredService<IClientInfoManager>();
-    var tokenIds = scope.ServiceProvider.GetRequiredService<ITokenIdGenerator>();
-    var testClient = new ClientInfo("test_client")
+    // The demo clients are seeded only in Development: their secret is published with this template.
+#warning DEV convenience only: test_client and console_client share the secret "secret", published with this template, and a row seeded once stays in oidc.db after this code is gone. Before a real deployment delete both rows from the client store, or start from a database that was never run in Development.
+    if (app.Environment.IsDevelopment())
     {
-        ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
-        TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
-        AllowedGrantTypes = [GrantTypes.AuthorizationCode],
-        PkceRequired = true,
-        RedirectUris = [new Uri("https://localhost:5002/signin-oidc", UriKind.Absolute)],
-        PostLogoutRedirectUris = [new Uri("https://localhost:5002/signout-callback-oidc", UriKind.Absolute)],
-    };
-    await clients.TryAddClientAsync(tenant, new RegisteredClient(testClient, tokenIds.GenerateTokenId()));
+        // The test client, written through the server's client store as a registration would be. A
+        // registration holds the identifier of the registration access token that manages it. No token is
+        // issued for a seeded client, so it holds the identifier of one never issued, and no request to the
+        // RFC 7592 configuration endpoint can change or remove it. On the next run the client is already
+        // held, so the add is refused and the stored row is kept as it is.
+        var clients = scope.ServiceProvider.GetRequiredService<IClientInfoManager>();
+        var tokenIds = scope.ServiceProvider.GetRequiredService<ITokenIdGenerator>();
+        var testClient = new ClientInfo("test_client")
+        {
+            ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
+            TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
+            AllowedGrantTypes = [GrantTypes.AuthorizationCode],
+            PkceRequired = true,
+            RedirectUris = [new Uri("https://localhost:5002/signin-oidc", UriKind.Absolute)],
+            PostLogoutRedirectUris = [new Uri("https://localhost:5002/signout-callback-oidc", UriKind.Absolute)],
+        };
+        await clients.TryAddClientAsync(tenant, new RegisteredClient(testClient, tokenIds.GenerateTokenId()));
 
-    // A headless client that obtains a token for itself through client_credentials and introspects it,
-    // which is how requests.http shows the server working before any interactive client exists.
-    var consoleClient = new ClientInfo("console_client")
-    {
-        ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
-        TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
-        AllowedGrantTypes = [GrantTypes.ClientCredentials],
+        // A headless client that obtains a token through client_credentials and introspects it, which is how
+        // requests.http shows the server working before any interactive client exists.
+        var consoleClient = new ClientInfo("console_client")
+        {
+            ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
+            TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
+            AllowedGrantTypes = [GrantTypes.ClientCredentials],
 
-        // No resource: its secret is published with this template, so it must never get a token for the weather
-        // API or any other registered in Resources, only one addressed to itself.
-        AllowedResources = [],
-    };
-    await clients.TryAddClientAsync(tenant, new RegisteredClient(consoleClient, tokenIds.GenerateTokenId()));
+            // No resource: its secret is published with this template, so its token is addressed only to this
+            // provider (the issuer), and neither the weather API nor any other registered in Resources accepts it.
+            AllowedResources = [],
+        };
+        await clients.TryAddClientAsync(tenant, new RegisteredClient(consoleClient, tokenIds.GenerateTokenId()));
+    }
 }
 
 // Configure the HTTP request pipeline.
