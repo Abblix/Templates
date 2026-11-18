@@ -4,6 +4,7 @@ using Abblix.DependencyInjection;
 using Abblix.Jwt;
 using Abblix.Oidc;
 using Abblix.Oidc.Server.Common.Constants;
+using Abblix.Oidc.Server.Features;
 using Abblix.Oidc.Server.Features.ClientInformation;
 using Abblix.Oidc.Server.Features.Consents;
 using Abblix.Oidc.Server.Features.MultiTenancy;
@@ -57,19 +58,28 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     //],
 
     // For production, register clients in a durable store rather than hardcoding them; the block below is only a demo. See https://docs.abblix.com/docs/durable-client-store
-    //Clients =
-    //[
-    //    new ClientInfo(/*...*/) {
-    //        ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash(/*...*/) }],
-    //        TokenEndpointAuthMethod = ClientAuthenticationMethods./*...*/,
-    //        AllowedGrantTypes = [GrantTypes./*...*/],
-    //        OfflineAccess = OfflineAccess./*...*/,
-    //        PkceRequired = /*...*/,
-    //        RedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
-    //        PostLogoutRedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
-    //    },
-    //    /*...*/
-    //],
+    Clients =
+    [
+        // A headless client that obtains a token for itself through client_credentials and introspects it,
+        // which is how requests.http shows the server working before any interactive client exists.
+        new ClientInfo("console_client")
+        {
+            ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash("secret") }],
+            TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
+            AllowedGrantTypes = [GrantTypes.ClientCredentials],
+        },
+
+        //new ClientInfo(/*...*/) {
+        //    ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash(/*...*/) }],
+        //    TokenEndpointAuthMethod = ClientAuthenticationMethods./*...*/,
+        //    AllowedGrantTypes = [GrantTypes./*...*/],
+        //    OfflineAccess = OfflineAccess./*...*/,
+        //    PkceRequired = /*...*/,
+        //    RedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
+        //    PostLogoutRedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
+        //},
+        // /*...*/
+    ],
 
     // The following URL leads to Login action of AuthController
     LoginUri = new Uri("/Auth/Login", UriKind.Relative),
@@ -79,6 +89,10 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
 }));
 
 static byte[] ToSha512Hash(string source) => SHA512.HashData(Encoding.UTF8.GetBytes(source));
+
+// Token introspection (RFC 7662) is opt-in: this call registers the endpoint and advertises it in discovery.
+// A client authenticates to it with its own credentials, as requests.http does with console_client.
+builder.Services.AddIntrospection();
 
 // Add authentication services
 builder.Services

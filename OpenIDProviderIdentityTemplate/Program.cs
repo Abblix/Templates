@@ -6,6 +6,7 @@ using Abblix.Jwt;
 using Abblix.Oidc;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Common.Interfaces;
+using Abblix.Oidc.Server.Features;
 using Abblix.Oidc.Server.Features.ClientInformation;
 using Abblix.Oidc.Server.Features.Consents;
 using Abblix.Oidc.Server.Features.MultiTenancy;
@@ -74,6 +75,10 @@ var tenant = new TenantDefinition
 
 // Register and configure Abblix OIDC Server
 builder.Services.AddOidcServices(options => options.Tenants.Add(tenant));
+
+// Token introspection (RFC 7662) is opt-in: this call registers the endpoint and advertises it in discovery.
+// A client authenticates to it with its own credentials, as requests.http does with console_client.
+builder.Services.AddIntrospection();
 
 // Durable OIDC state (signing keys and client registrations) lives in SQLite so a restart neither
 // invalidates issued tokens nor forgets registered clients. The providers below are singletons, so
@@ -262,6 +267,16 @@ using (var scope = app.Services.CreateScope())
         PostLogoutRedirectUris = [new Uri("https://localhost:5002/signout-callback-oidc", UriKind.Absolute)],
     };
     await clients.TryAddClientAsync(tenant, new RegisteredClient(testClient, tokenIds.GenerateTokenId()));
+
+    // A headless client that obtains a token for itself through client_credentials and introspects it,
+    // which is how requests.http shows the server working before any interactive client exists.
+    var consoleClient = new ClientInfo("console_client")
+    {
+        ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
+        TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
+        AllowedGrantTypes = [GrantTypes.ClientCredentials],
+    };
+    await clients.TryAddClientAsync(tenant, new RegisteredClient(consoleClient, tokenIds.GenerateTokenId()));
 }
 
 // Configure the HTTP request pipeline.
