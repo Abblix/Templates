@@ -3,6 +3,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Abblix.Jwt;
 using Abblix.Oidc;
+using Abblix.Oidc.Server.Common.Configuration;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Common.Interfaces;
 using Abblix.Oidc.Server.Features;
@@ -18,6 +19,7 @@ using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -54,7 +56,11 @@ builder.Services.AddConsentGrantedForEveryClient();
 
 // The one issuer this provider serves. The seeding below writes the signing key and the configured clients
 // under this tenant's id, so the same definition is handed to the server and kept for the seeding.
-var tenant = new TenantDefinition
+var tenant = DefineTenant([]);
+
+// The tenant with the given clients declared on it. The server is handed it with none, since its clients live in
+// the durable store below; the seeding judges the configured clients by declaring them on this same definition.
+static TenantDefinition DefineTenant(ClientInfo[] clients) => new()
 {
     Id = "main",
 
@@ -67,9 +73,10 @@ var tenant = new TenantDefinition
     ],
     LoginUri = new Uri("/Auth/Login", UriKind.Relative),
 
-    // SigningKeys and Clients are deliberately NOT set here. They come from the SQLite-backed
-    // stores registered below, so they outlive a restart. A first-party client could still be
+    // SigningKeys are deliberately NOT set here, and Clients only for that judgement. Both come from the
+    // SQLite-backed stores registered below, so they outlive a restart. A first-party client could still be
     // declared in Clients: the server serves those ahead of any stored registration under the same id.
+    Clients = clients,
 };
 
 // Register and configure Abblix OIDC Server
@@ -256,9 +263,22 @@ using (var scope = app.Services.CreateScope())
     // identifier of one never issued, and no request to the RFC 7592 configuration endpoint can change or remove
     // it. On the next run the client is already held, so the add is refused and the stored row is kept as it is.
 #warning DEV convenience only: the clients in appsettings.Development.json share the secret "secret", published with this template, and a row seeded once stays in oidc.db whatever environment later runs on it (table Clients, ClientKey TEST_CLIENT and CONSOLE_CLIENT). Before a real deployment delete those rows, or start from a database that was never run in Development.
+    var configured = ReadClients(app.Configuration);
+
+    // The client store takes whatever it is given, so a client the server could never authenticate (a plain
+    // secret where a hash belongs, a hex digest, a repeated id) would start a host that refuses its every token
+    // request. The checks the server runs at startup on the clients a tenant declares judge these instead.
+    var oidcOptions = scope.ServiceProvider.GetRequiredService<IOptions<OidcOptions>>().Value;
+    var refusals = scope.ServiceProvider.GetServices<ITenantsCheck>()
+        .SelectMany(check => check.Check([DefineTenant(configured)], oidcOptions))
+        .Select(refusal => refusal.Message)
+        .ToList();
+    if (refusals.Count > 0)
+        throw new InvalidOperationException($"The Oidc:Clients configuration section declares clients the server refuses: {string.Join(" ", refusals)}");
+
     var clients = scope.ServiceProvider.GetRequiredService<IClientInfoManager>();
     var tokenIds = scope.ServiceProvider.GetRequiredService<ITokenIdGenerator>();
-    foreach (var client in ReadClients(app.Configuration))
+    foreach (var client in configured)
         await clients.TryAddClientAsync(tenant, new RegisteredClient(client, tokenIds.GenerateTokenId()));
 }
 
