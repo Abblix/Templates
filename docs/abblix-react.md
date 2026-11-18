@@ -1,12 +1,12 @@
 # abblix-react
 
-`abblix-react` creates an ASP.NET Core host with a single-page application built with React, TypeScript and Vite. During development the host starts the Vite dev server and proxies to it, and a published build serves the compiled application from `wwwroot`.
+`abblix-react` creates an ASP.NET Core host with a single-page application built with React, TypeScript and Vite. During development the host starts the Vite dev server and redirects the browser to it, and a published build serves the compiled application from `wwwroot`.
 
 The template lives in the [ReactTemplate](../ReactTemplate) folder. What changed between versions is in its [changelog](../ReactTemplate/.template.config/CHANGELOG.md).
 
 ## Requirements
 
-- A .NET SDK that builds .NET 10, and the ASP.NET Core 10 runtime to run the host. The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) brings both; the .NET 11 SDK builds the project too when the ASP.NET Core 10 runtime is installed beside it.
+- A .NET SDK that builds .NET 10, and the ASP.NET Core 10 runtime to run the host. The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) brings both; the .NET 11 SDK builds the project too, and running it then needs the ASP.NET Core 10 runtime installed beside it.
 - [Node.js](https://nodejs.org/) with npm. A Debug build installs the npm packages when `ClientApp/node_modules` is missing, `dotnet run` starts the Vite dev server with npm, and `dotnet publish` installs the packages and builds the application. A Release build alone does not run npm.
 
 ## Creating a project from the command line
@@ -77,7 +77,7 @@ cd MyApp
 dotnet run
 ```
 
-`dotnet run` builds the host, installing the npm packages on the first run, and starts it at `https://localhost:<port>`, the port chosen at creation. The SPA proxy then starts the Vite dev server with `npm run dev`, and the browser opens on the host's address. Changes under `ClientApp/src` reload in the browser without restarting the host.
+`dotnet run` builds the host, installing the npm packages on the first run, and starts it at `https://localhost:<port>`, the port chosen at creation. The SPA proxy then starts the Vite dev server with `npm run dev`, and the browser opens on the host's address, which redirects it to the Vite dev server at `https://localhost:<spa-proxy-port>`. There, changes under `ClientApp/src` reload without restarting the host. The page runs on the Vite address, so a request it sends to a relative path reaches Vite, not the host. To call the host's own endpoints, add a `server.proxy` entry to `ClientApp/vite.config.ts`.
 
 The Vite dev server serves HTTPS with the ASP.NET Core development certificate. On its first start it exports the certificate with `dotnet dev-certs` into `%APPDATA%\ASP.NET\https` on Windows or `~/.aspnet/https` elsewhere. Trust the certificate once with `dotnet dev-certs https --trust`, or the browser refuses both addresses.
 
@@ -89,4 +89,4 @@ In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with 
 dotnet publish -c Release
 ```
 
-Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers any path it does not know with `index.html`.
+Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers any path that is not one of its files with `index.html`.

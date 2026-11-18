@@ -37,8 +37,8 @@ dotnet new abblix-oidc-server-gettingstarted -n MyProvider --https-port 7100 --u
 | Option | Default | Example | What it does |
 | --- | --- | --- | --- |
 | `--https-port` | a free port between 7000 and 7300 | `--https-port 7100` | The HTTPS port the provider is served on. It is also written into the issuer in `Program.cs`, into the launch profile and into `requests.http`. `0` picks a free port, as when the option is left out. |
-| `--user` | none, so the user store starts empty | `--user alice@example.com` | Adds a development user to the in-memory store, with the name "Demo User". The value is the user's email address and login. The login page asks for an email address, so a value such as `dev` is created but cannot be typed into the page. |
-| `--password` | `Passw0rd!` | `--password "Passw0rd!"` | The password of the `--user` account. It is written into `Program.cs` and compared in plain text. Ignored without `--user`. |
+| `--user` | none, so the user store starts empty | `--user alice@example.com` | Adds a development user to the in-memory store, with the name "Demo User". The value is the user's email address and login. The login page asks for an email address, so a value such as `dev` is created but cannot be typed into the page. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. |
+| `--password` | `Passw0rd!` | `--password "Passw0rd!"` | The password of the `--user` account. It is written into `Program.cs` and compared in plain text, so it must not contain `"` or `\` either. Ignored without `--user`. |
 
 `dotnet new abblix-oidc-server-gettingstarted -h` prints the options of the version you have installed, with their types and defaults.
 

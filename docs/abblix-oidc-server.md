@@ -28,7 +28,7 @@ dotnet new abblix-oidc-server -n MyProvider
 A project with every option set:
 
 ```shell
-dotnet new abblix-oidc-server -n MyProvider --https-port 7100 --user alice@example.com --password "Str0ng!Passw0rd"
+dotnet new abblix-oidc-server -n MyProvider --https-port 7100 --user alice@example.com --password "Str0ng-Passw0rd"
 ```
 
 ## Options
@@ -36,8 +36,8 @@ dotnet new abblix-oidc-server -n MyProvider --https-port 7100 --user alice@examp
 | Option | Default | Example | What it does |
 | --- | --- | --- | --- |
 | `--https-port` | a free port between 7000 and 7300 | `--https-port 7100` | The HTTPS port the provider is served on. It is also written into the issuer in `Program.cs`, into the launch profile and into `requests.http`. `0` picks a free port, as when the option is left out. |
-| `--user` | none, so no user is created | `--user alice@example.com` | Seeds a development user into the Identity store at first run. The value is both the user's email address and login, so it has to be an email address: with `--user dev`, the first run stops with `Email 'dev' is invalid.` |
-| `--password` | a random password | `--password "Str0ng!Passw0rd"` | The password of the `--user` account. It must meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol. A password that breaks them stops the first run with an error listing the rules it breaks. Ignored without `--user`. |
+| `--user` | none, so no user is created | `--user alice@example.com` | Seeds a development user into the Identity store at first run. The value is both the user's email address and login, so it has to be an email address: with `--user dev`, the first run stops with `Email 'dev' is invalid.` The user gets the name John Doe, returned for the `profile` scope. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. |
+| `--password` | a random password | `--password "Str0ng-Passw0rd"` | The password of the `--user` account. It must meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol. A password that breaks them stops the first run with an error listing the rules it breaks. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. Ignored without `--user`. |
 
 Without `--password`, the first run generates a password and prints it once on the console:
 
@@ -107,7 +107,7 @@ A client seeded into `oidc.db` stays there: a later edit to its entry in `Oidc:C
 
 ## Before deploying
 
-The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the printed password and the demo clients. Each warning names the fix. Besides them:
+The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when `--user` is given without `--password`, the printed password. Each warning names the fix. Besides them:
 
 - Set `Issuer` in `Program.cs` to the provider's public address, or clients reject its tokens.
 - Set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of `*`.
