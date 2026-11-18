@@ -148,7 +148,9 @@ public sealed class AppUserInfoProvider(/* the application's user store */) : IU
         TenantDefinition tenant, AuthSession authSession, IEnumerable<string> requestedClaims)
     {
         // authSession.Subject is the user id the login page put into the session (step 4)
-        var user = /* find the user by authSession.Subject */;
+        // An asynchronous lookup in the store, such as UserManager.FindByIdAsync. A synchronous store drops
+        // async from the method and returns Task.FromResult<JsonObject?>(...) instead.
+        var user = await /* find the user by authSession.Subject */;
         if (user is null)
             return null;
 
@@ -157,9 +159,10 @@ public sealed class AppUserInfoProvider(/* the application's user store */) : IU
         {
             switch (claim)
             {
-                case "email": claims[claim] = user.Email; break;
+                // A claim the user has no value for is left out, never written as null
+                case "email" when user.Email is { } email: claims[claim] = email; break;
                 case "email_verified": claims[claim] = user.EmailConfirmed; break;
-                case "name": claims[claim] = user.DisplayName; break;
+                case "name" when user.DisplayName is { } name: claims[claim] = name; break;
             }
         }
         return claims;
@@ -168,7 +171,7 @@ public sealed class AppUserInfoProvider(/* the application's user store */) : IU
 ```
 
 An application on ASP.NET Core Identity can start from the template's
-[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs),
+[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs),
 replacing its namespace with the application's and `IdentityUser` with the application's user type (an
 application on `AddDefaultIdentity<ApplicationUser>` has no `UserManager<IdentityUser>`). Without any `IUserInfoProvider` the server falls back to one that knows no user: no ID token is issued
 and the userinfo endpoint answers `invalid_token`.
@@ -243,11 +246,12 @@ client on `https://localhost:5002` uses. Read `clientSecret` from configuration 
 source. A browser or mobile application, which cannot keep a secret, sets
 `TokenEndpointAuthMethod = ClientAuthenticationMethods.None` and no `ClientSecrets`. A client gets refresh tokens
 only when `OfflineAccess` says so (`OfflineAccess.Allowed` or `OfflineAccess.ConsentRequired`); it is disabled by
-default.
+default. Under `AddConsentGrantedForEveryClient()`, `ConsentRequired` is no safeguard: a client that sends
+`prompt=consent` gets the refresh token, since every consent is granted.
 
 Clients declared in `Clients` suit a fixed set the application owns. For clients registered at run time, the
 `abblix-oidc-server` template keeps them in a database through `ITenantClientRegistrationStore`, see its
-[DurableClientStore.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/DurableClientStore.cs).
+[DurableClientStore.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/OidcStore/DurableClientStore.cs).
 
 ## Step 6: a signing key that outlives a restart
 
@@ -284,7 +288,7 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes -subj "/CN=OIDC sign
 Keys kept in the application's database, encrypted with ASP.NET Core Data Protection, as the
 `abblix-oidc-server` template does: an `IAuthServiceKeysProvider` registered after `AddOidcServices`, which then
 replaces the server's own, and the tenant declares no `SigningKeys`. Its
-[DatabaseKeysProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/DatabaseKeysProvider.cs)
+[DatabaseKeysProvider.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/OidcStore/DatabaseKeysProvider.cs)
 and the seeding in its `Program.cs` can be copied.
 
 Keys held by HashiCorp Vault, OpenBao or Azure Key Vault, through the `Abblix.JWT.Vault` or `Abblix.JWT.Azure`
@@ -326,8 +330,10 @@ the server builds the addresses in the discovery document from the host a reques
 - `InvalidOperationException: Scheme already exists: Cookies`: the application already registers that scheme.
   Remove the added `AddCookie()`, and check step 0: if the application signs its own users in on it, stop.
 - 404 from `/.well-known/openid-configuration`: `MapOidcControllers()` or `MapOidcEndpoints()` is missing. With
-  an issuer that has a path, the document is under that path, and `app.UseMultiTenancy()` must come before
-  `app.UseRouting()`.
+  an issuer that has a path, the document is under that path.
+- The application does not start ("Hosting failed to start"), saying "The pipeline does not call
+  UseMultiTenancy()": the issuer has a path and the pipeline lacks `app.UseMultiTenancy()`; call it before
+  `app.UseRouting()` and `app.UseAuthentication()` (step 2).
 - After signing in, the browser returns to the login page: the login page signed the user in with the
   application's own cookie but did not call `IAuthSessionService.SignInAsync`, did not pass `request_uri` on, or
   the application's own sign-in shares the `Cookies` scheme and wrote over the server's session (step 0).

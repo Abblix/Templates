@@ -10,7 +10,7 @@ Replace `UserStore.Authenticate` below with the application's own credential che
 that is `UserManager.FindByEmailAsync` followed by `SignInManager.CheckPasswordSignInAsync(user, password,
 lockoutOnFailure: true)`, which checks the password and the lockout without issuing Identity's cookie, as the
 `abblix-oidc-server` template does in its
-[AuthController.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/Controllers/AuthController.cs).
+[AuthController.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/Controllers/AuthController.cs).
 
 ## MVC
 
