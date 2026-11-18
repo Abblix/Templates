@@ -8,7 +8,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 - Linting moves from ESLint to oxlint: `npm run lint` runs `oxlint` with the React plugin enabled in `.oxlintrc.json`, and `eslint.config.js` and the ESLint packages are gone.
 - The front-end dependencies move to TypeScript 7.0, Vite 8.3.8, `@vitejs/plugin-react` 6 and React 19.2.7. The host still targets .NET 10 and references Microsoft.AspNetCore.SpaProxy 10.0.9, up from 10.0.3.
-- `vite.config.ts` exports and reads the ASP.NET Core development certificate only when the dev server runs, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load read the certificate files, exporting them first when they were missing, so a build where the export failed, such as on a build agent without the .NET SDK, failed with it.
+- `vite.config.ts` exports and reads the ASP.NET Core development certificate only when serving (the dev server or `vite preview`), never when building, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load read the certificate files, exporting them first when they were missing, so a build where the export failed, such as on a build agent without the .NET SDK, failed with it.
 - `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. A Debug build installs the packages when `ClientApp/node_modules` is missing, and a publish installs and builds them, as before.
 
 ### Added
@@ -19,6 +19,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 ### Changed
 
 - The browser tab shows the Abblix icon (`favicon.svg`) instead of the Vite one.
+- The READMEs describe oxlint instead of ESLint, and give the application's address as `https://localhost:<port>` with the port chosen at creation, where 2.x gave `http://localhost:5000`. `@types/node` moves from 24 to 26.
 
 ### Fixed
 
@@ -27,7 +28,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 ### Security
 
 - The lockfile of 2.0.1 pinned development tools with published advisories. The high-severity ones include Vite 7.3.1 (GHSA-p9ff-h696-f583, arbitrary file read through the dev server WebSocket; GHSA-v2wj-q39q-566r, `server.fs.deny` bypass; GHSA-587h-7wmj-h5pm in launch-editor), Rollup 4.57.1 (GHSA-mw96-cpmx-2vgc, arbitrary file write), postcss 8.5.6 (GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849, arbitrary .map file read) and source-map-js 1.2.1 (GHSA-68fv-2mgg-jv7q, denial of service). None of these packages reach the published application.
-- With the move to Vite 8 and oxlint, the lockfile now pins Vite 8.3.8, postcss 8.5.33 and source-map-js 1.2.2, which leaves every advisory against the 2.0.1 tools behind except one: picomatch (GHSA-fc5q-39xc-vjpf, a high-severity ReDoS) has no fixed release yet, so `npm audit` still reports it.
+- With the move to Vite 8 and oxlint, the lockfile now pins Vite 8.3.8, postcss 8.5.33 and source-map-js 1.2.2, and `npm audit` reports no advisory against it.
 
 ## 2.0.1 - 2026-02-19
 
