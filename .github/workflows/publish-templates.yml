@@ -136,7 +136,7 @@ jobs:
       - name: Name the skipped step when NuGet.org refused the package
         if: ${{ failure() && steps.push.outcome == 'failure' }}
         run: |
-          echo "::error title=NuGet.org trusted publishing::NuGet.org refused Abblix.Templates; the push log above names the reason. Skipped step: when it names ownership or the key, make the trusted publishing policy's owner (Abblix) an owner of Abblix.Templates and let the policy's scope allow new packages and new versions for the glob Abblix.Templates at https://www.nuget.org/account/trustedpublishing, then re-run the failed job. When it names the package itself (id, version, metadata), fix Abblix.Templates.csproj, commit, and dispatch the workflow anew from the branch carrying the fix: a re-run packs the same commit again"
+          echo "::error title=NuGet.org trusted publishing::NuGet.org refused Abblix.Templates; the push log above names the reason. Skipped step: when it names ownership or the key, make the trusted publishing policy's owner (Abblix) an owner of Abblix.Templates and let the policy's scope allow new packages and new versions for the glob Abblix.Templates at https://www.nuget.org/account/trustedpublishing, then re-run the failed job. When it names the package itself (id, version, metadata), fix Abblix.Templates.csproj, merge the fix into master and dispatch the workflow anew from master, the only branch the publish-packages environment admits: a re-run packs the same commit again"
           exit 1
         timeout-minutes: 3
 
