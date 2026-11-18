@@ -119,6 +119,7 @@ Understanding the structure of your project is crucial for effective development
 ├── appsettings.Development.json
 ├── MyOpenIDProvider.csproj
 ├── Program.cs
+├── requests.http
 └── TestUserStorage.cs
 ```
 
@@ -131,11 +132,12 @@ Understanding the structure of your project is crucial for effective development
 - appsettings.Development.json: Development-specific configuration settings.
 - MyOpenIDProvider.csproj: Project file for the .NET project.
 - Program.cs: Entry point for the .NET application.
+- requests.http: Requests to send from the IDE against the running provider, described under Running the Project.
 - TestUserStorage.cs: In-memory storage for user credentials, useful for testing and development purposes.
 
 ## 🔧 Configuration
 
-The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, and commented-out scopes, resources and clients to fill in. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` and `appsettings.Development.json` hold only the logging and host filtering settings. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
+The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, one client (`console_client`, for the client credentials grant only, whose secret `secret` is published with this template, so it may get no token for a registered API), and commented-out scopes, resources and further clients to fill in. Token introspection is switched on by `AddIntrospection()` next to it. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` and `appsettings.Development.json` hold only the logging and host filtering settings. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
 
 Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
 
@@ -160,6 +162,8 @@ dotnet run
 ```
 
 You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
+
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port.
 
 ## 🎨 Customization
 

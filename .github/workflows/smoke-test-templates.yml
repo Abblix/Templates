@@ -8,7 +8,7 @@ name: Smoke test templates
 on:
   workflow_dispatch:
   pull_request:
-    branches: [master]
+    branches: [master, 'release/**']
     paths:
       # OpenIDProviderIdentityTemplate is the directory behind the `abblix-oidc-server` short name, the
       # flagship template this workflow scaffolds first. It was absent from this list, so a change to it
@@ -114,14 +114,19 @@ jobs:
       # together. What keeps CI safe is therefore the absence, plus the reason it can stay absent: each
       # template's csproj already restores npm when node_modules is missing, so a post-action doing the
       # same buys nothing and costs an interactive prompt.
-      - name: OIDC provider (Identity + EF) - scaffold, build, serve discovery
+      - name: OIDC provider (Identity + EF) - scaffold, build, send its requests
         # The production template: Identity + EF/SQLite users, durable client and
         # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
         # runs it (seeds SQLite on first start; no --user so no console pause) and
-        # checks discovery + jwks. 8m: cold npm install, vite build, EF restore.
+        # sends the requests of its requests.http: discovery, jwks, a client credentials token and its
+        # introspection. The heaviest step: cold npm install, vite build, EF restore.
         # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
+        env:
+          # The template seeds its demo clients, console_client among them, only in Development; the host
+          # otherwise starts as Production and refuses the token request below.
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc"
@@ -151,6 +156,17 @@ jobs:
           done
           jwks=0
           curl -skf "$url/.well-known/jwks" -o jwks.json && jwks=1
+          token=0
+          curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
+            -d client_secret=secret -o token.json && token=1
+          introspection=0
+          if [ "$token" = 1 ] && access_token=$(jq -er '.access_token' token.json); then
+            curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
+              -d client_id=console_client -d client_secret=secret -o introspection.json && introspection=1
+          fi
+          # Holds only while https://localhost:5004 is a registered resource: an unknown one is refused too.
+          refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+            -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
           # Waited for, so the next template can take the same address.
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
@@ -161,13 +177,22 @@ jobs:
           # Exactly one: the template persists one signing key, and a provider serving none signs nothing.
           jq -e '.keys | length == 1' jwks.json > /dev/null ||
             { echo "::error::jwks does not serve exactly one signing key"; exit 1; }
+          jq -e --arg url "$url" '.introspection_endpoint == $url + "/connect/introspect"' disco.json > /dev/null ||
+            { echo "::error::OIDC discovery does not name $url/connect/introspect as its introspection endpoint"; exit 1; }
+          [ "$token" = 1 ] || { echo "::error::OIDC token endpoint issued no token to console_client"; exit 1; }
+          [ "$introspection" = 1 ] || { echo "::error::OIDC introspection endpoint did not answer for the token just issued"; exit 1; }
+          jq -e '.active == true and .client_id == "console_client"' introspection.json > /dev/null ||
+            { echo "::error::OIDC introspection does not report the token just issued as active for console_client"; exit 1; }
+          if [ "$refused" != 400 ] || ! jq -e '.error == "invalid_target"' refused.json > /dev/null; then
+            echo "::error::OIDC token endpoint did not refuse console_client a token for https://localhost:5004 with 400 invalid_target"
+            exit 1
+          fi
           echo "OIDC provider template OK"
         # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
         timeout-minutes: 3
 
-      - name: OIDC getting-started (in-memory) - scaffold, build, serve discovery
+      - name: OIDC getting-started (in-memory) - scaffold, build, send its requests
         # The learning template: in-memory stores and an ephemeral key, no npm.
-        # 5m: dotnet restore of Abblix.Oidc.Server.Mvc plus build and a host run.
         # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
         # generator's range, so a project that ignored the option could not pass by chance.
         run: |
@@ -190,6 +215,16 @@ jobs:
           done
           jwks=0
           curl -skf "$url/.well-known/jwks" -o jwks-gs.json && jwks=1
+          # The last two requests of the project's requests.http: a token for console_client from the client
+          # credentials grant, then introspection of that token by the same client.
+          token=0
+          curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
+            -d client_secret=secret -o token-gs.json && token=1
+          introspection=0
+          if [ "$token" = 1 ] && access_token=$(jq -er '.access_token' token-gs.json); then
+            curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
+              -d client_id=console_client -d client_secret=secret -o introspection-gs.json && introspection=1
+          fi
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
@@ -199,6 +234,12 @@ jobs:
           # Exactly one: the template generates one signing key at startup.
           jq -e '.keys | length == 1' jwks-gs.json > /dev/null ||
             { echo "::error::getting-started jwks does not serve exactly one signing key"; exit 1; }
+          jq -e --arg url "$url" '.introspection_endpoint == $url + "/connect/introspect"' disco-gs.json > /dev/null ||
+            { echo "::error::getting-started discovery does not name $url/connect/introspect as its introspection endpoint"; exit 1; }
+          [ "$token" = 1 ] || { echo "::error::getting-started token endpoint issued no token to console_client"; exit 1; }
+          [ "$introspection" = 1 ] || { echo "::error::getting-started introspection endpoint did not answer for the token just issued"; exit 1; }
+          jq -e '.active == true and .client_id == "console_client"' introspection-gs.json > /dev/null ||
+            { echo "::error::getting-started introspection does not report the token just issued as active for console_client"; exit 1; }
           echo "OIDC getting-started template OK"
         # Baseline 3m; measured 5s.
         timeout-minutes: 3
@@ -206,7 +247,7 @@ jobs:
       - name: React template - scaffold, publish, serve SPA
         # dotnet publish runs the PublishRunWebpack target (npm install + vite
         # build) and copies dist into wwwroot; then serve the published host and
-        # confirm it returns the SPA shell. 8m: cold npm install and vite build
+        # confirm it returns the SPA shell. Cold npm install and vite build
         # dominate.
         run: |
           set -euo pipefail
