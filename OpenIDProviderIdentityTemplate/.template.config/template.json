@@ -55,7 +55,7 @@
             "datatype": "string",
             "defaultValue": "",
             "replaces": "SAMPLE_USER_EMAIL",
-            "description": "Email/login of a dev sample user to pre-seed into the Identity store. If omitted, no sample user is created."
+            "description": "Email address of a dev sample user to pre-seed into the Identity store; it is also the login, and a value that is not an email address stops the first run. If omitted, no sample user is created."
         },
         "password": {
             "type": "parameter",
