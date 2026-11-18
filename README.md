@@ -19,6 +19,7 @@
 - [About the Templates](#-about-the-templates)
 - [Prerequisites](#-prerequisites)
 - [Installing the Templates](#-installing-the-templates)
+- [Adding the Server to an Existing Application](#-adding-the-server-to-an-existing-application)
 - [License](#-license)
 - [Acknowledgements](#-acknowledgements)
 - [Key Contacts & Resources](#-key-contacts--resources)
@@ -68,6 +69,12 @@ dotnet new install path/to/Abblix.Templates.x.x.x.nupkg
 ```
 
 This method allows you to install the template manually using the `.nupkg` file.
+
+## 🧩 Adding the Server to an Existing Application
+
+The templates start a new project. To turn an application you already have into an OpenID Connect provider, this repository carries an agent skill, [add-abblix-oidc-server](skills/add-abblix-oidc-server/SKILL.md), which a coding agent follows to take the same steps the OpenID Provider templates take: it adds the package, registers the server with one tenant, chooses how consent is given, maps the endpoints for MVC or Minimal API, hands the user from a login page back to the server, declares a first client, and loads a signing key that stays the same across restarts.
+
+The skill is in the common `SKILL.md` format. Copy the `skills/add-abblix-oidc-server` folder into the skills directory your agent reads (for Claude Code, `.claude/skills/` in the project or in your home directory), then ask the agent to add Abblix OIDC Server to the application. The skill is versioned with the templates in this repository and is not part of the `Abblix.Templates` package, so `dotnet new install` neither installs it nor lists it.
 
 ## 📃 License
 
