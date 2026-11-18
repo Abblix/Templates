@@ -17,6 +17,7 @@
 
 ## Table of Contents
 - [About the Templates](#-about-the-templates)
+- [Changelogs](#-changelogs)
 - [Prerequisites](#-prerequisites)
 - [Installing the Templates](#-installing-the-templates)
 - [Adding the Server to an Existing Application](#-adding-the-server-to-an-existing-application)
@@ -34,6 +35,14 @@ This template serves as a starting point for creating an ASP.NET Core WebAPI pro
 Two templates for building an OpenID Connect Provider using ASP.NET Core in conjunction with Abblix OIDC Server 3.0. Both serve the OpenID endpoints at whatever host name a request arrives with and build the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of the `*` they ship with.
   - `abblix-oidc-server` ([OpenIDProviderIdentityTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderIdentityTemplate)): the starting point for a real project. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the signing key and client registrations are stored in SQLite as well, so a restart keeps them.
   - `abblix-oidc-server-gettingstarted` ([OpenIDProviderTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderTemplate)): a minimal provider for learning, with an in-memory user store, clients declared in `appsettings.Development.json` under `Oidc:Clients` and a signing key generated at every startup. Its build warnings mark the in-memory user store, the generated signing key and the in-memory cache as choices to replace before production.
+
+## 📜 Changelogs
+
+Each template keeps a changelog of its own, so anyone who created a project from an earlier version can see what has changed in the template since then:
+
+- `abblix-oidc-server`: [OpenIDProviderIdentityTemplate changelog](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/.template.config/CHANGELOG.md)
+- `abblix-oidc-server-gettingstarted`: [OpenIDProviderTemplate changelog](https://github.com/Abblix/Templates/blob/master/OpenIDProviderTemplate/.template.config/CHANGELOG.md)
+- `abblix-react`: [ReactTemplate changelog](https://github.com/Abblix/Templates/blob/master/ReactTemplate/.template.config/CHANGELOG.md)
 
 ## 📋 Prerequisites
 
