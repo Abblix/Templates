@@ -21,8 +21,11 @@ the `abblix-oidc-server` and `abblix-oidc-server-gettingstarted` templates of
 - The library targets .NET 11 only. If the project's `TargetFramework` is lower, say so and stop until the user
   agrees to raise it: raising a framework is their decision, it affects every other package of the project.
 - Install exactly one adapter. Both together make the application refuse to start, since both map the same paths.
-- The server does not start without a consent decision (step 2). It does not answer without `app.UseCors()`
-  after routing (step 3): every protocol endpoint then returns 500.
+- The server does not start without a consent decision (step 2). Without `app.UseCors()` after routing
+  (step 3), or without `IMemoryCache` (step 2), discovery and the token endpoint answer 500 while the
+  authorization endpoint may still work, so a working sign-in redirect rules out neither cause.
+- The server writes its session into the cookie scheme named `Cookies` and nowhere else. If the application's
+  own sign-in uses that scheme too, stop at step 0 (see there): the two overwrite each other.
 - Keep everything the application already does. Add registrations and middleware beside the existing ones; never
   remove or reorder the host's own middleware except where a step says where a call must go.
 - Tell the user before you finish that the library is distributed under a source-available license, free of
@@ -35,9 +38,17 @@ Before editing, find out and note:
 
 - `TargetFramework` in the project file (must be `net11.0`).
 - The hosting model. `AddControllers`, `AddControllersWithViews` or `AddMvc` in `Program.cs` means MVC; only
-  `app.MapGet`/`MapPost` and friends means Minimal API.
+  `app.MapGet`/`MapPost` and friends means Minimal API. Note whether views are registered
+  (`AddControllersWithViews`, `AddMvc`, `AddRazorPages`): the MVC login page of step 4 needs them, and an
+  application with `AddControllers` alone takes the Minimal API login endpoints instead, which work beside
+  controllers.
 - What authentication is already registered: `AddAuthentication`, `AddCookie`, `AddIdentity`,
-  `AddDefaultIdentity`. Note whether a cookie scheme named `Cookies` already exists.
+  `AddDefaultIdentity`. If the application signs its own users in on the scheme named `Cookies` (an
+  `AddCookie()` without a name, or `CookieAuthenticationDefaults.AuthenticationScheme`), stop and tell the user:
+  the server's sign-in replaces that cookie's principal with its own (the application's roles and claims are
+  gone), and the application's next sign-in ends the server's session. One of the two has to move to another
+  scheme name, and which one is the user's decision. ASP.NET Core Identity's own cookie
+  (`Identity.Application`) does not collide.
 - Where users and their passwords live (ASP.NET Core Identity, a table of the application's own, an external
   directory). The server keeps no users; it asks the application for them.
 - Whether `IDistributedCache` is registered (`AddStackExchangeRedisCache`, `AddDistributedSqlServerCache`,
@@ -96,21 +107,21 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     Clients = [firstClient],
 }));
 
-// The server keeps its session in a cookie of the scheme named "Cookies".
-// Skip this line if the application already registers that scheme: a second AddCookie() with it throws.
+// The server keeps its session in a cookie of the scheme named "Cookies" (see step 0 if the application
+// already uses that scheme for its own sign-in)
 builder.Services.AddAuthentication().AddCookie();
 
 // Authorization codes, request URIs and the like live here between requests.
 // Several instances need a shared cache (Redis, SQL Server); skip this line if one is registered already.
 builder.Services.AddDistributedMemoryCache();
 
+// The server needs IMemoryCache and, in 3.0.0, does not register it. Views bring one, AddControllers alone
+// and Minimal API do not; the call does nothing where one is registered already.
+builder.Services.AddMemoryCache();
+
 // The users: the server asks this service for the claims of a signed-in user
 builder.Services.AddScoped<IUserInfoProvider, AppUserInfoProvider>();
 ```
-
-A Minimal API application also adds `builder.Services.AddMemoryCache();`: in 3.0.0 the server needs
-`IMemoryCache` and does not register it, and an MVC application gets one from `AddControllersWithViews` while a
-Minimal API one does not. Without it every protocol endpoint returns 500, naming `IMemoryCache` in the log.
 
 Put the issuer in `appsettings.json` (and the development address in `appsettings.Development.json`):
 
@@ -118,9 +129,9 @@ Put the issuer in `appsettings.json` (and the development address in `appsetting
 "Oidc": { "Issuer": "https://localhost:5001" }
 ```
 
-The issuer must be the exact scheme, host and port clients reach, with no trailing path. An issuer with a path
-(`https://example.com/identity`) also needs `app.UseMultiTenancy()` before `app.UseRouting()`; one without a path
-does not.
+The issuer must be the exact scheme, host and port clients reach, with no trailing slash. An issuer with a path
+(`https://example.com/identity`) serves every endpoint under that path and also needs `app.UseMultiTenancy()`
+(`using Abblix.Oidc.Server.AspNetCore.MultiTenancy;`) before `app.UseRouting()`; one without a path does not.
 
 `AppUserInfoProvider` implements one method. It returns `null` only when the user does not exist, and leaves
 out any claim it does not hold:
@@ -156,9 +167,10 @@ public sealed class AppUserInfoProvider(/* the application's user store */) : IU
 }
 ```
 
-An application on ASP.NET Core Identity can take the template's
-[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs)
-as it is. Without any `IUserInfoProvider` the server falls back to one that knows no user: no ID token is issued
+An application on ASP.NET Core Identity can start from the template's
+[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs),
+replacing its namespace with the application's and `IdentityUser` with the application's user type (an
+application on `AddDefaultIdentity<ApplicationUser>` has no `UserManager<IdentityUser>`). Without any `IUserInfoProvider` the server falls back to one that knows no user: no ID token is issued
 and the userinfo endpoint answers `invalid_token`.
 
 ## Step 3: map the endpoints
@@ -167,7 +179,7 @@ In the request pipeline, after `builder.Build()`:
 
 ```csharp
 app.UseRouting();   // keep the application's own call if it has one
-app.UseCors();      // after routing, before the endpoints: without it the protocol endpoints answer 500
+app.UseCors();      // after routing, before the endpoints: without it discovery and token answer 500
 
 app.MapOidcControllers();   // MVC
 // app.MapOidcEndpoints();  // Minimal API
@@ -180,10 +192,13 @@ its own CORS policy, so the application adds no `AddCors` for it; an application
 `UseAuthorization()`: keep them if the application has them, do not add them if it does not (`UseAuthorization`
 without `AddAuthorization` stops the application at startup).
 
-If the application already serves something under `/connect/` or `/.well-known/`, mount the server under a
-prefix, `app.MapOidcControllers(prefix: "/oidc")` or `app.MapOidcEndpoints(prefix: "/oidc")`, or move single
-endpoints with `builder.Services.Configure<OidcRouteOptions>(routes => routes.Token = "/oauth2/token")`
-(`using Abblix.Oidc.Server.AspNetCore;`).
+If the application already serves something under `/connect/` or `/.well-known/`, move single endpoints with
+`builder.Services.Configure<OidcRouteOptions>(routes => routes.Token = "/oauth2/token")`
+(`using Abblix.Oidc.Server.AspNetCore;`), or move the whole server under a path by putting the path into the
+issuer (`https://example.com/oidc`, with `app.UseMultiTenancy()` as in step 2) and mapping with no prefix. Do not
+use the `prefix` argument of `MapOidcControllers` or `MapOidcEndpoints` for this: discovery then sits under the
+prefix while its issuer does not carry it, and a client that checks the issuer against the address it fetched the
+document from, as OpenID Connect Discovery requires, refuses it.
 
 ## Step 4: hand the user from the login page back to the server
 
@@ -195,9 +210,11 @@ only the session that `IAuthSessionService.SignInAsync` writes.
 
 The MVC controller and view, and the Minimal API endpoints, are in
 [references/login-page.md](references/login-page.md). A Minimal API application needs `app.UseAntiforgery()`
-after `app.UseRouting()` for its login form: without it a post without the antiforgery token is accepted. An application that already has a login page can add the
-hand-off at the end of its successful sign-in instead of adding a second page: point `LoginUri` at it and carry
-`request_uri` through its form.
+after `app.UseRouting()` for its login form: without it a post without the antiforgery token is accepted.
+
+An application that already has a login page can add the hand-off at the end of its successful sign-in instead
+of adding a second page (point `LoginUri` at it and carry `request_uri` through its form), but only when its own
+cookie is a scheme other than `Cookies`, such as Identity's `Identity.Application` (step 0).
 
 ## Step 5: the first client
 
@@ -296,20 +313,25 @@ the server builds the addresses in the discovery document from the host a reques
 
 ## Troubleshooting
 
-- 500 from every protocol endpoint, the log saying CORS metadata was found but no middleware handled it:
-  `app.UseCors()` is missing or sits before `app.UseRouting()`.
-- 500 from every protocol endpoint, `Unable to resolve service for type
+- 500 from discovery and the token endpoint, the log saying the endpoint contains CORS metadata but no
+  middleware supporting CORS was found: `app.UseCors()` is missing or sits before `app.UseRouting()`.
+- 500 from discovery and the token endpoint, `Unable to resolve service for type
   'Microsoft.Extensions.Caching.Memory.IMemoryCache'`: add `builder.Services.AddMemoryCache()` (step 2).
+- 500 from the login page, `No service for type
+  'Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataDictionaryFactory' has been registered`: the MVC login page
+  was added to an application without views; use the Minimal API login endpoints (step 0).
 - The application stops at startup naming `IUserConsentsProvider`: no consent decision is registered (step 2).
 - The application stops at startup saying both OIDC transport adapters are registered: remove one package and
   its `AddOidcServices` namespace.
-- `InvalidOperationException: Scheme already exists: Cookies`: the application already registers the cookie
-  scheme; remove the added `AddCookie()`.
-- 404 from `/.well-known/openid-configuration`: `MapOidcControllers()` or `MapOidcEndpoints()` is missing, or a
-  prefix was given and the address must include it. With an issuer that has a path, `app.UseMultiTenancy()` is
-  missing.
+- `InvalidOperationException: Scheme already exists: Cookies`: the application already registers that scheme.
+  Remove the added `AddCookie()`, and check step 0: if the application signs its own users in on it, stop.
+- 404 from `/.well-known/openid-configuration`: `MapOidcControllers()` or `MapOidcEndpoints()` is missing. With
+  an issuer that has a path, the document is under that path, and `app.UseMultiTenancy()` must come before
+  `app.UseRouting()`.
 - After signing in, the browser returns to the login page: the login page signed the user in with the
-  application's own cookie but did not call `IAuthSessionService.SignInAsync`, or did not pass `request_uri` on.
+  application's own cookie but did not call `IAuthSessionService.SignInAsync`, did not pass `request_uri` on, or
+  the application's own sign-in shares the `Cookies` scheme and wrote over the server's session (step 0).
+- `UseMultiTenancy` is not found: add `using Abblix.Oidc.Server.AspNetCore.MultiTenancy;`.
 - A token issued before a restart no longer validates: the signing key is generated at startup (step 6).
 - No ID token and userinfo answers `invalid_token`: no `IUserInfoProvider` is registered, or it returns `null`
   for the subject the login page set.

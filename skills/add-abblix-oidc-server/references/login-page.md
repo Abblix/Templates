@@ -14,6 +14,9 @@ lockoutOnFailure: true)`, which checks the password and the lockout without issu
 
 ## MVC
 
+This variant needs views (`AddControllersWithViews` or `AddMvc`). An application with `AddControllers` alone
+takes the Minimal API variant below, which works beside its controllers.
+
 `Controllers/AuthController.cs`:
 
 ```csharp
@@ -113,8 +116,11 @@ app.UseAntiforgery();
 app.MapGet("/Auth/Login", (HttpContext http, IAntiforgery antiforgery, [FromQuery(Name = "request_uri")] string requestUri) =>
 {
     var token = antiforgery.GetAndStoreTokens(http);
+
+    // The path base carries the issuer's path when it has one, so the form posts inside the tenant
+    var action = System.Net.WebUtility.HtmlEncode($"{http.Request.PathBase}/Auth/Login");
     var html = $"""
-        <form method="post" action="/Auth/Login">
+        <form method="post" action="{action}">
           <input type="hidden" name="{token.FormFieldName}" value="{token.RequestToken}">
           <input type="hidden" name="request_uri" value="{System.Net.WebUtility.HtmlEncode(requestUri)}">
           <input name="email" type="email" autocomplete="username" required>
@@ -129,6 +135,7 @@ app.MapPost("/Auth/Login", async (
     [FromForm] string email,
     [FromForm] string password,
     [FromForm(Name = "request_uri")] string requestUri,
+    HttpContext http,
     UserStore users,
     IAuthSessionService authSessions,
     ISessionIdGenerator sessionIds,
@@ -136,7 +143,7 @@ app.MapPost("/Auth/Login", async (
     TimeProvider clock) =>
 {
     if (users.Authenticate(email, password) is not { } subject)
-        return Results.Redirect($"/Auth/Login?request_uri={Uri.EscapeDataString(requestUri)}");
+        return Results.Redirect($"{http.Request.PathBase}/Auth/Login?request_uri={Uri.EscapeDataString(requestUri)}");
 
     await authSessions.SignInAsync(new AuthSession(
         subject,
