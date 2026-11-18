@@ -152,8 +152,6 @@ jobs:
           done
           jwks=0
           curl -skf "$url/.well-known/jwks" -o jwks.json && jwks=1
-          # The last two requests of the project's requests.http: a token for console_client from the client
-          # credentials grant, then introspection of that token by the same client.
           token=0
           curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
             -d client_secret=secret -o token.json && token=1
@@ -162,6 +160,9 @@ jobs:
             curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
               -d client_id=console_client -d client_secret=secret -o introspection.json && introspection=1
           fi
+          # Its secret is published, so console_client must get no token for the registered API.
+          refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+            -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
           # Waited for, so the next template can take the same address.
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
@@ -178,6 +179,10 @@ jobs:
           [ "$introspection" = 1 ] || { echo "::error::OIDC introspection endpoint did not answer for the token just issued"; exit 1; }
           jq -e '.active == true and .client_id == "console_client"' introspection.json > /dev/null ||
             { echo "::error::OIDC introspection does not report the token just issued as active for console_client"; exit 1; }
+          if [ "$refused" != 400 ] || ! jq -e '.error == "invalid_target"' refused.json > /dev/null; then
+            echo "::error::OIDC token endpoint did not refuse console_client a token for https://localhost:5004 with 400 invalid_target"
+            exit 1
+          fi
           echo "OIDC provider template OK"
         # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
         timeout-minutes: 3
