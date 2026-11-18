@@ -30,16 +30,46 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "defaultValue": "5000",
-            "replaces": "5000",
-            "description": "Port for the ASP.NET Core host HTTPS endpoint in launchSettings.json."
+            "description": "HTTPS port the ASP.NET Core host is served on. If omitted, a free port between 7000 and 7300 is picked."
+        },
+        "HttpsPortGenerated": {
+            "type": "generated",
+            "generator": "port",
+            "parameters": {
+                "low": 7000,
+                "high": 7300
+            }
+        },
+        "HttpsPortReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "HttpsPort",
+                "fallbackVariableName": "HttpsPortGenerated"
+            },
+            "replaces": "5000"
         },
         "SpaProxyPort": {
             "type": "parameter",
             "datatype": "integer",
-            "defaultValue": "3000",
-            "replaces": "3000",
-            "description": "Port for the Vite dev server that SpaProxy connects to (SpaProxyServerUrl and vite.config.ts)."
+            "description": "Port of the Vite dev server the host proxies to during development. If omitted, a free port between 5173 and 5273 is picked."
+        },
+        "SpaProxyPortGenerated": {
+            "type": "generated",
+            "generator": "port",
+            "parameters": {
+                "low": 5173,
+                "high": 5273
+            }
+        },
+        "SpaProxyPortReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "SpaProxyPort",
+                "fallbackVariableName": "SpaProxyPortGenerated"
+            },
+            "replaces": "3000"
         }
     },
     "sources": [

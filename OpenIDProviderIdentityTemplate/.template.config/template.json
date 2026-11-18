@@ -30,9 +30,24 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "defaultValue": "5001",
-            "replaces": "5001",
-            "description": "Port for the HTTPS endpoint in launchSettings.json."
+            "description": "HTTPS port the provider is served on and names in its issuer. If omitted, a free port between 7000 and 7300 is picked."
+        },
+        "HttpsPortGenerated": {
+            "type": "generated",
+            "generator": "port",
+            "parameters": {
+                "low": 7000,
+                "high": 7300
+            }
+        },
+        "HttpsPortReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "HttpsPort",
+                "fallbackVariableName": "HttpsPortGenerated"
+            },
+            "replaces": "5001"
         },
         "user": {
             "type": "parameter",
