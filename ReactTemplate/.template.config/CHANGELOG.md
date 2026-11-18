@@ -8,7 +8,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 - Linting moves from ESLint to oxlint: `npm run lint` runs `oxlint` with the React plugin enabled in `.oxlintrc.json`, and `eslint.config.js` and the ESLint packages are gone.
 - The front-end dependencies move to TypeScript 7.0, Vite 8.3.8, `@vitejs/plugin-react` 6 and React 19.2.7. The host still targets .NET 10 and references Microsoft.AspNetCore.SpaProxy 10.0.9, up from 10.0.3.
-- `vite.config.ts` exports and reads the ASP.NET Core development certificate only when the dev server runs, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load ran the export, so a build where it failed, such as on a build agent without the .NET SDK, failed with it.
+- `vite.config.ts` exports and reads the ASP.NET Core development certificate only when the dev server runs, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load read the certificate files, exporting them first when they were missing, so a build where the export failed, such as on a build agent without the .NET SDK, failed with it.
 - `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. A Debug build installs the packages when `ClientApp/node_modules` is missing, and a publish installs and builds them, as before.
 
 ### Added
@@ -22,11 +22,11 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Fixed
 
-- A new project no longer receives a prebuilt `ClientApp/dist` from the package; 2.0.0 and 2.0.1 shipped a stale one.
+- A new project no longer receives a prebuilt `ClientApp/dist` from the package; 2.0.0 and 2.0.1 shipped one it never needed.
 
 ### Security
 
-- The lockfile moves Vite to 8.3.8, postcss to 8.5.33 and source-map-js to 1.2.2, past GHSA-587h-7wmj-h5pm, GHSA-r825-w8mm-5pxw, GHSA-698v-4r3x-3vcv, GHSA-rq7h-c2jc-7f22 and GHSA-9jrq-w75r-8gcw in Vite, GHSA-68fv-2mgg-jv7q in source-map-js and the source map path traversal in postcss below 8.5.23. All of them are development dependencies.
+- The lockfile of 2.0.1 pinned development tools with published advisories, all of which the move to Vite 8 and oxlint leaves behind. Among the high-severity ones: Vite 7.3.1 (GHSA-p9ff-h696-f583, arbitrary file read through the dev server WebSocket; GHSA-v2wj-q39q-566r, `server.fs.deny` bypass; GHSA-587h-7wmj-h5pm in launch-editor), Rollup 4.57.1 (GHSA-mw96-cpmx-2vgc, arbitrary file write), postcss 8.5.6 (GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849, arbitrary .map file read) and source-map-js 1.2.1 (GHSA-68fv-2mgg-jv7q, denial of service). The lockfile now pins Vite 8.3.8, postcss 8.5.33 and source-map-js 1.2.2. None of these packages reach the published application.
 
 ## 2.0.1 - 2026-02-19
 
@@ -54,6 +54,6 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 - README corrections only.
 
-## 1.0.0 - 2024-08-17
+## 1.0.0 - 2024-08-22
 
 - First release: an ASP.NET Core host for .NET 8 with a React 18, TypeScript and Vite 5 front end in `ClientApp`, served over HTTPS with the ASP.NET Core development certificate and proxied through Microsoft.AspNetCore.SpaProxy during development.

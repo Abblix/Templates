@@ -8,7 +8,8 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 - The short name changed. In 2.x, `dotnet new abblix-oidc-server` created this in-memory provider. That name now creates the production-shaped provider on ASP.NET Core Identity and EF Core, together with the aliases `oidc-server`, `oauth2-server` and `openidconnect`; this template is `abblix-oidc-server-gettingstarted`.
 - The project targets .NET 11 and references Abblix.Oidc.Server.Mvc 3.0.0, up from .NET 10 and 2.2.
-- The provider declares its issuer as one tenant: `AddOidcServices` adds a `TenantDefinition` to `options.Tenants`, and the issuer address, `LoginUri` and `SigningKeys` are set on it instead of on the options themselves. The issuer is `https://localhost:<port>`, the port the project is served on.
+- The provider declares its issuer as one tenant: `AddOidcServices` adds a `TenantDefinition` to `options.Tenants`, and `LoginUri` and `SigningKeys` are set on it instead of on the options themselves.
+- The issuer is now fixed in `Program.cs` as `https://localhost:<port>`, the port the project is served on. In 2.x no issuer was set, so it came from the host each request arrived on. Before deploying, set `Issuer` to the provider's public address, or clients reject its tokens.
 - A consent provider is registered with `AddConsentGrantedForEveryClient()`, which grants every client everything it asks for. That suits only clients of your own; to ask the end user, register your own `IUserConsentsProvider` instead.
 - `app.MapOidcControllers()` maps the protocol endpoints, because the library's controllers carry no routes of their own.
 - `AuthController.Login` finds the authorization endpoint with `IOidcEndpointResolver.Resolve(OidcEndpoints.Authorize)` instead of `IUriResolver.Content(Path.Authorize)`.
@@ -54,6 +55,6 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 - README corrections only.
 
-## 1.0.0 - 2024-08-17
+## 1.0.0 - 2024-08-22
 
 - First release: an OpenID Provider on ASP.NET Core MVC and Abblix OIDC Server 1.1.0 for .NET 8, with a login page, an in-memory user store and a signing key generated at startup.
