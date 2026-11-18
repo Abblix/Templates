@@ -217,8 +217,8 @@ using (var scope = app.Services.CreateScope())
 #endif
 
     // Seed the OIDC store so the sample runs out of the box: a signing key that survives restarts,
-    // and the test client. On the next run both already exist, so the same key keeps validating
-    // tokens issued before the restart. A real deployment replaces EnsureCreated with EF migrations,
+    // and two demo clients, test_client and console_client. On the next run all three already exist, so the
+    // same key keeps validating tokens issued before the restart. A real deployment replaces EnsureCreated with EF migrations,
     // and keeps signing keys in an HSM or KMS rather than the database (see the #warning on PersistedSigningKey).
     var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
@@ -275,6 +275,10 @@ using (var scope = app.Services.CreateScope())
         ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
         TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
         AllowedGrantTypes = [GrantTypes.ClientCredentials],
+
+        // No resource: its secret is published with this template, so it must never get a token for the weather
+        // API or any other registered in Resources, only one addressed to itself.
+        AllowedResources = [],
     };
     await clients.TryAddClientAsync(tenant, new RegisteredClient(consoleClient, tokenIds.GenerateTokenId()));
 }

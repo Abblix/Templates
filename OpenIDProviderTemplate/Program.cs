@@ -67,6 +67,10 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
             ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash("secret") }],
             TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
             AllowedGrantTypes = [GrantTypes.ClientCredentials],
+
+            // No resource: its secret is published with this template, so it must never get a token for an API
+            // registered in Resources, only one addressed to itself.
+            AllowedResources = [],
         },
 
         //new ClientInfo(/*...*/) {
