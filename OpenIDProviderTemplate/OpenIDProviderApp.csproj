@@ -10,4 +10,9 @@
     <PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- It declares the demo clients and their published secret: keep it out of the published app. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+
 </Project>

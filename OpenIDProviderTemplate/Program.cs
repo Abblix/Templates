@@ -1,5 +1,3 @@
-using System.Security.Cryptography;
-using System.Text;
 using Abblix.DependencyInjection;
 using Abblix.Jwt;
 using Abblix.Oidc;
@@ -47,7 +45,7 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     // The address the app is served on, written into every token it issues
     Issuer = new Uri("https://localhost:5001"),
 
-    // Configure the issuer's scopes, resources and clients here:
+    // Configure the issuer's scopes and resources here:
 
     // Scopes = [new ScopeDefinition(/*...*/)],
 
@@ -57,33 +55,12 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     //    /*...*/
     //],
 
-    // For production, register clients in a durable store rather than hardcoding them; the block below is only a demo. See https://docs.abblix.com/docs/durable-client-store
-    Clients =
-    [
-        // A headless client that obtains a token for itself through client_credentials and introspects it,
-        // which is how requests.http shows the server working before any interactive client exists.
-        new ClientInfo("console_client")
-        {
-            ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash("secret") }],
-            TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
-            AllowedGrantTypes = [GrantTypes.ClientCredentials],
-
-            // No resource: its secret is published with this template, so its token is addressed only to this
-            // provider (the issuer), and no API registered in Resources accepts it.
-            AllowedResources = [],
-        },
-
-        //new ClientInfo(/*...*/) {
-        //    ClientSecrets = [new ClientSecret { Sha512Hash = ToSha512Hash(/*...*/) }],
-        //    TokenEndpointAuthMethod = ClientAuthenticationMethods./*...*/,
-        //    AllowedGrantTypes = [GrantTypes./*...*/],
-        //    OfflineAccess = OfflineAccess./*...*/,
-        //    PkceRequired = /*...*/,
-        //    RedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
-        //    PostLogoutRedirectUris = [new Uri(/*...*/, UriKind.Absolute)],
-        //},
-        // /*...*/
-    ],
+    // The clients the Oidc:Clients configuration section declares. Only appsettings.Development.json declares
+    // one, console_client, whose secret is published with this template, so a host started in any other
+    // environment has none. Add further clients there, in the same shape; a client's keys go in by JwksUri, since
+    // an inline Jwks cannot be bound from configuration. For production, register clients in a durable store
+    // instead. See https://docs.abblix.com/docs/durable-client-store
+    Clients = ReadClients(builder.Configuration),
 
     // The following URL leads to Login action of AuthController
     LoginUri = new Uri("/Auth/Login", UriKind.Relative),
@@ -92,7 +69,33 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     SigningKeys = [JsonWebKeyFactory.CreateRsa(PublicKeyUsages.Signature)],
 }));
 
-static byte[] ToSha512Hash(string source) => SHA512.HashData(Encoding.UTF8.GetBytes(source));
+// The clients the Oidc:Clients section declares, none when it is absent. Left to itself the binder skips a value
+// it cannot convert and keeps an entry with no ClientId, so both are refused here, naming the section.
+static ClientInfo[] ReadClients(IConfiguration configuration)
+{
+    const string section = "Oidc:Clients";
+    ClientInfo[]? clients;
+    try
+    {
+        clients = configuration.GetSection(section).Get<ClientInfo[]>(options => options.ErrorOnUnknownConfiguration = true);
+    }
+    catch (InvalidOperationException exception)
+    {
+        // The binder's own message says only that binding failed; the key and the value it could not read are in
+        // the exceptions beneath it.
+        var reasons = new List<string>();
+        for (var reason = exception.InnerException ?? exception; reason is not null; reason = reason.InnerException)
+            reasons.Add(reason.Message);
+
+        throw new InvalidOperationException($"The {section} configuration section does not describe clients: {string.Join(" ", reasons)}", exception);
+    }
+
+    var unnamed = Array.FindIndex(clients ?? [], client => string.IsNullOrEmpty(client.ClientId));
+    if (unnamed >= 0)
+        throw new InvalidOperationException($"The {section} configuration section has a client with no ClientId at {section}:{unnamed}");
+
+    return clients ?? [];
+}
 
 // Token introspection (RFC 7662) is opt-in: this call registers the endpoint and advertises it in discovery.
 // A client authenticates to it with its own credentials, as requests.http does with console_client.

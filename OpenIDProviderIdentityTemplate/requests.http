@@ -11,7 +11,8 @@
 @host = https://localhost:5001
 
 # A confidential client registered for the client credentials grant only; "secret" is the demo
-# secret whose SHA-512 hash the provider seeds into oidc.db at startup.
+# secret whose SHA-512 hash appsettings.Development.json declares and the provider seeds into oidc.db at
+# startup in Development (the environment of the launch profile `dotnet run` uses).
 @clientId = console_client
 @clientSecret = secret
 

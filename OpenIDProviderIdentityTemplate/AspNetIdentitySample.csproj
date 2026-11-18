@@ -20,6 +20,10 @@
     <None Remove="$(ClientRoot)**" />
     <None Include="$(ClientRoot)**" Exclude="$(ClientRoot)node_modules\**" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- It declares the demo clients and their published secret: keep it out of the published app. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
   <!-- Restore npm packages when node_modules is missing (fresh clone / CI). -->
   <Target Name="EnsureClientDeps" Condition="!Exists('$(ClientRoot)node_modules')">
     <Exec Command="node --version" ContinueOnError="true">
