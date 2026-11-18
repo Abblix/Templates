@@ -30,7 +30,7 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "HTTPS port the ASP.NET Core host is served on. If omitted, a free port between 7000 and 7300 is picked."
+            "description": "HTTPS port the ASP.NET Core host is served on. If omitted, a free port between 7000 and 7300 is picked (0 picks one)."
         },
         "HttpsPortGenerated": {
             "type": "generated",
@@ -45,14 +45,15 @@
             "generator": "coalesce",
             "parameters": {
                 "sourceVariableName": "HttpsPort",
-                "fallbackVariableName": "HttpsPortGenerated"
+                "fallbackVariableName": "HttpsPortGenerated",
+                "defaultValue": "0"
             },
             "replaces": "5000"
         },
         "SpaProxyPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "Port of the Vite dev server the host proxies to during development. If omitted, a free port between 5173 and 5273 is picked."
+            "description": "Port of the Vite dev server the host proxies to during development. If omitted, a free port between 5173 and 5273 is picked (0 picks one)."
         },
         "SpaProxyPortGenerated": {
             "type": "generated",
@@ -67,7 +68,8 @@
             "generator": "coalesce",
             "parameters": {
                 "sourceVariableName": "SpaProxyPort",
-                "fallbackVariableName": "SpaProxyPortGenerated"
+                "fallbackVariableName": "SpaProxyPortGenerated",
+                "defaultValue": "0"
             },
             "replaces": "3000"
         }
