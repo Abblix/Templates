@@ -57,8 +57,9 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
 
     // The clients the Oidc:Clients configuration section declares. Only appsettings.Development.json declares
     // one, console_client, whose secret is published with this template, so a host started in any other
-    // environment has none. Add further clients there, in the same shape. For production, register clients in a
-    // durable store instead. See https://docs.abblix.com/docs/durable-client-store
+    // environment has none. Add further clients there, in the same shape; a client's keys go in by JwksUri, since
+    // an inline Jwks cannot be bound from configuration. For production, register clients in a durable store
+    // instead. See https://docs.abblix.com/docs/durable-client-store
     Clients = ReadClients(builder.Configuration),
 
     // The following URL leads to Login action of AuthController
@@ -80,7 +81,13 @@ static ClientInfo[] ReadClients(IConfiguration configuration)
     }
     catch (InvalidOperationException exception)
     {
-        throw new InvalidOperationException($"The {section} configuration section does not describe clients: {exception.Message}", exception);
+        // The binder's own message says only that binding failed; the key and the value it could not read are in
+        // the exceptions beneath it.
+        var reasons = new List<string>();
+        for (var reason = exception.InnerException ?? exception; reason is not null; reason = reason.InnerException)
+            reasons.Add(reason.Message);
+
+        throw new InvalidOperationException($"The {section} configuration section does not describe clients: {string.Join(" ", reasons)}", exception);
     }
 
     var unnamed = Array.FindIndex(clients ?? [], client => string.IsNullOrEmpty(client.ClientId));
