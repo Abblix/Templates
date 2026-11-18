@@ -7,7 +7,7 @@
 [![GitHub release](https://img.shields.io/github/v/release/Abblix/Templates)](#)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 
-⭐ Star us on GitHub — it motivates us a lot!
+⭐ Star us on GitHub, it motivates us a lot!
 
 [![Share](https://img.shields.io/badge/share-000000?logo=x&logoColor=white)](https://x.com/intent/tweet?text=Check%20out%20this%20project%20on%20GitHub:%20https://github.com/Abblix/Templates%20%23ASPNetCore%20%23Templates%20%23DotNet)
 [![Share](https://img.shields.io/badge/share-1877F2?logo=facebook&logoColor=white)](https://www.facebook.com/sharer/sharer.php?u=https://github.com/Abblix/Templates)
@@ -125,7 +125,7 @@ Once you've created your new project, you're ready to run it and see everything 
    dotnet run
    ```
 
-   This will start the ASP.NET Core backend and the Vite development server. You can access the application in your browser at `http://localhost:5000`.
+   This will start the ASP.NET Core backend and the Vite development server. You can access the application in your browser at `https://localhost:5000`. The port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked.
 
 ## 📂 Project Structure
 

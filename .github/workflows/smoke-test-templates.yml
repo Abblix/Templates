@@ -119,10 +119,18 @@ jobs:
         # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
         # runs it (seeds SQLite on first start; no --user so no console pause) and
         # checks discovery + jwks. 8m: cold npm install, vite build, EF restore.
+        # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
+        # from the project's launchSettings.json, must carry a port from the generator's range, and must
+        # be both where the host answers and the issuer discovery names.
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc"
           dotnet new abblix-oidc-server -n SmokeOidc -o "$work"
+          url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
+          port="${url##*:}"
+          [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
+            { echo "::error::launchSettings.json names $url, not a port generated between 7000 and 7300"; exit 1; }
+          echo "Generated address: $url"
           dotnet build "$work" -c Release
           # From the OUTPUT directory, not from the checkout. appsettings.json sits next to the dll
           # and ASP.NET Core resolves it against the working directory, so starting the app anywhere
@@ -133,22 +141,22 @@ jobs:
           # reads as a broken template. Measured both ways: from the checkout, not one .db file exists
           # anywhere afterwards; from here, discovery answers and oidc.db/users.db are on disk.
           cd "$work/bin/Release/net11.0"
-          # At the address the template names as its issuer, over HTTPS, which its OpenID endpoints require.
-          dotnet ./SmokeOidc.dll --urls https://localhost:5001 &
+          # At the address launchSettings.json names, over HTTPS, which the OpenID endpoints require.
+          dotnet ./SmokeOidc.dll --urls "$url" &
           pid=$!
           ok=0
           for _ in $(seq 1 40); do
-            if curl -skf https://localhost:5001/.well-known/openid-configuration -o disco.json; then ok=1; break; fi
+            if curl -skf "$url/.well-known/openid-configuration" -o disco.json; then ok=1; break; fi
             sleep 1
           done
           jwks=0
-          curl -skf https://localhost:5001/.well-known/jwks -o jwks.json && jwks=1
+          curl -skf "$url/.well-known/jwks" -o jwks.json && jwks=1
           # Waited for, so the next template can take the same address.
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::OIDC discovery endpoint did not respond"; exit 1; }
-          jq -e '.issuer == "https://localhost:5001"' disco.json > /dev/null ||
-            { echo "::error::discovery does not name https://localhost:5001 as its issuer"; exit 1; }
+          jq -e --arg url "$url" '.issuer == $url' disco.json > /dev/null ||
+            { echo "::error::discovery does not name $url, the address in launchSettings.json, as its issuer"; exit 1; }
           [ "$jwks" = 1 ] || { echo "::error::OIDC jwks endpoint did not respond"; exit 1; }
           # Exactly one: the template persists one signing key, and a provider serving none signs nothing.
           jq -e '.keys | length == 1' jwks.json > /dev/null ||
@@ -160,28 +168,33 @@ jobs:
       - name: OIDC getting-started (in-memory) - scaffold, build, serve discovery
         # The learning template: in-memory stores and an ephemeral key, no npm.
         # 5m: dotnet restore of Abblix.Oidc.Server.Mvc plus build and a host run.
+        # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
+        # generator's range, so a project that ignored the option could not pass by chance.
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc-gs"
-          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work"
+          url="https://localhost:5443"
+          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work" --https-port 5443
+          jq -e --arg url "$url" '.profiles.https.applicationUrl == $url' "$work/Properties/launchSettings.json" > /dev/null ||
+            { echo "::error::launchSettings.json does not name $url, the address given with --https-port"; exit 1; }
           dotnet build "$work" -c Release
           # From the output directory, for the reason spelled out in the step above.
           cd "$work/bin/Release/net11.0"
-          # At the template's issuer over HTTPS, for the reason given in the step above.
-          dotnet ./SmokeOidcGs.dll --urls https://localhost:5001 &
+          # At the address given with --https-port, over HTTPS, for the reason given in the step above.
+          dotnet ./SmokeOidcGs.dll --urls "$url" &
           pid=$!
           ok=0
           for _ in $(seq 1 30); do
-            if curl -skf https://localhost:5001/.well-known/openid-configuration -o disco-gs.json; then ok=1; break; fi
+            if curl -skf "$url/.well-known/openid-configuration" -o disco-gs.json; then ok=1; break; fi
             sleep 1
           done
           jwks=0
-          curl -skf https://localhost:5001/.well-known/jwks -o jwks-gs.json && jwks=1
+          curl -skf "$url/.well-known/jwks" -o jwks-gs.json && jwks=1
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
-          jq -e '.issuer == "https://localhost:5001"' disco-gs.json > /dev/null ||
-            { echo "::error::getting-started discovery does not name https://localhost:5001 as its issuer"; exit 1; }
+          jq -e --arg url "$url" '.issuer == $url' disco-gs.json > /dev/null ||
+            { echo "::error::getting-started discovery does not name $url, the address given with --https-port, as its issuer"; exit 1; }
           [ "$jwks" = 1 ] || { echo "::error::getting-started jwks endpoint did not respond"; exit 1; }
           # Exactly one: the template generates one signing key at startup.
           jq -e '.keys | length == 1' jwks-gs.json > /dev/null ||
@@ -200,15 +213,27 @@ jobs:
           work="$RUNNER_TEMP/react"
           pub="$RUNNER_TEMP/react-pub"
           dotnet new abblix-react -n SmokeReact -o "$work"
+          # Both ports are generated: the host's, read back from launchSettings.json, and the Vite dev
+          # server's, read back from the project's SpaProxyServerUrl as MSBuild evaluates it.
+          url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
+          port="${url##*:}"
+          [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
+            { echo "::error::launchSettings.json names $url, not a port generated between 7000 and 7300"; exit 1; }
+          spa=$(dotnet msbuild "$work/SmokeReact.csproj" -getProperty:SpaProxyServerUrl)
+          spa_port="${spa##*:}"
+          [ "$spa" = "https://localhost:$spa_port" ] && [ "$spa_port" -ge 5173 ] && [ "$spa_port" -le 5273 ] ||
+            { echo "::error::SpaProxyServerUrl is $spa, not a port generated between 5173 and 5273"; exit 1; }
+          echo "Generated addresses: host $url, dev server $spa"
           dotnet publish "$work" -c Release -o "$pub"
           test -f "$pub/wwwroot/index.html" || { echo "::error::SPA index.html not published to wwwroot"; exit 1; }
           # From the publish directory, for the reason spelled out in the first template step.
           cd "$pub"
-          dotnet ./SmokeReact.dll --urls http://localhost:5081 &
+          # At the address launchSettings.json names, over HTTPS with the development certificate.
+          dotnet ./SmokeReact.dll --urls "$url" &
           pid=$!
           ok=0
           for _ in $(seq 1 30); do
-            if curl -sf http://localhost:5081/ -o root.html; then ok=1; break; fi
+            if curl -skf "$url/" -o root.html; then ok=1; break; fi
             sleep 1
           done
           kill "$pid" 2>/dev/null || true
