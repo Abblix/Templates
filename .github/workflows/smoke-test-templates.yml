@@ -124,8 +124,9 @@ jobs:
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
         env:
-          # The template seeds its demo clients, console_client among them, only in Development; the host
-          # otherwise starts as Production and refuses the token request below.
+          # Only appsettings.Development.json declares the demo clients, console_client among them; the host
+          # otherwise starts as Production with none and refuses the token request below. The last run
+          # overrides it with Production to prove exactly that refusal.
           ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
@@ -187,14 +188,37 @@ jobs:
             echo "::error::OIDC token endpoint did not refuse console_client a token for https://localhost:5004 with 400 invalid_target"
             exit 1
           fi
+          # Again in Production, on a database never run in Development: the template must start there, and with
+          # no client in appsettings.json the demo clients' published secret must open nothing.
+          rm -f oidc.db oidc.db-wal oidc.db-shm
+          ASPNETCORE_ENVIRONMENT=Production dotnet ./SmokeOidc.dll --urls "$url" &
+          pid=$!
+          ok=0
+          for _ in $(seq 1 40); do
+            if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+            -d client_id=console_client -d client_secret=secret) || unseeded=none
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          [ "$ok" = 1 ] || { echo "::error::OIDC provider template did not start in Production: discovery did not respond"; exit 1; }
+          if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
+            echo "::error::OIDC provider template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
+            exit 1
+          fi
           echo "OIDC provider template OK"
-        # Baseline 3m; measured 20s, the heaviest of the three (it carries the cold NuGet restore).
+        # Baseline 3m; measured 35s with the Production run, the heaviest of the three (it carries the cold
+        # NuGet restore).
         timeout-minutes: 3
 
       - name: OIDC getting-started (in-memory) - scaffold, build, send its requests
         # The learning template: in-memory stores and an ephemeral key, no npm.
         # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
         # generator's range, so a project that ignored the option could not pass by chance.
+        env:
+          # For the reason given in the step above: console_client exists only in Development.
+          ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc-gs"
@@ -240,8 +264,25 @@ jobs:
           [ "$introspection" = 1 ] || { echo "::error::getting-started introspection endpoint did not answer for the token just issued"; exit 1; }
           jq -e '.active == true and .client_id == "console_client"' introspection-gs.json > /dev/null ||
             { echo "::error::getting-started introspection does not report the token just issued as active for console_client"; exit 1; }
+          # Again in Production, where appsettings.json must declare no client, as in the step above.
+          ASPNETCORE_ENVIRONMENT=Production dotnet ./SmokeOidcGs.dll --urls "$url" &
+          pid=$!
+          ok=0
+          for _ in $(seq 1 30); do
+            if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          unseeded=$(curl -sk -o unseeded-gs.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+            -d client_id=console_client -d client_secret=secret) || unseeded=none
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          [ "$ok" = 1 ] || { echo "::error::getting-started template did not start in Production: discovery did not respond"; exit 1; }
+          if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded-gs.json > /dev/null; then
+            echo "::error::getting-started template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
+            exit 1
+          fi
           echo "OIDC getting-started template OK"
-        # Baseline 3m; measured 5s.
+        # Baseline 3m; measured 7s with the Production run.
         timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
