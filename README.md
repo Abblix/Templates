@@ -17,6 +17,7 @@
 
 ## Table of Contents
 - [About the Templates](#-about-the-templates)
+- [Template Pages](#-template-pages)
 - [Changelogs](#-changelogs)
 - [Prerequisites](#-prerequisites)
 - [Installing the Templates](#-installing-the-templates)
@@ -35,6 +36,14 @@ This template serves as a starting point for creating an ASP.NET Core WebAPI pro
 Two templates for building an OpenID Connect Provider using ASP.NET Core in conjunction with Abblix OIDC Server 3.0. Both serve the OpenID endpoints at whatever host name a request arrives with and build the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of the `*` they ship with.
   - `abblix-oidc-server` ([OpenIDProviderIdentityTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderIdentityTemplate)): the starting point for a real project. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the signing key and client registrations are stored in SQLite as well, so a restart keeps them.
   - `abblix-oidc-server-gettingstarted` ([OpenIDProviderTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderTemplate)): a minimal provider for learning, with an in-memory user store, clients declared in `appsettings.Development.json` under `Oidc:Clients` and a signing key generated at every startup. Its build warnings mark the in-memory user store, the generated signing key and the in-memory cache as choices to replace before production.
+
+## 📖 Template Pages
+
+Each template has a page with the `dotnet new` command, every option with its default and an example, how to create the project from Visual Studio or JetBrains Rider, what the created project contains and how to run it:
+
+- `abblix-oidc-server`: [OpenID Provider on ASP.NET Core Identity](https://github.com/Abblix/Templates/blob/master/docs/abblix-oidc-server.md)
+- `abblix-oidc-server-gettingstarted`: [OpenID Provider for learning, in memory](https://github.com/Abblix/Templates/blob/master/docs/abblix-oidc-server-gettingstarted.md)
+- `abblix-react`: [ASP.NET Core with React and Vite](https://github.com/Abblix/Templates/blob/master/docs/abblix-react.md)
 
 ## 📜 Changelogs
 
