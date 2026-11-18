@@ -2,7 +2,7 @@ name: Publish templates to NuGet
 
 # Manual-only publish of the Abblix.Templates package to NuGet.org.
 # The package version is set explicitly by <PackageVersion> in
-# Abblix.Templates.csproj (no MinVer here) — bump it there before running.
+# Abblix.Templates.csproj (no MinVer here) - bump it there before running.
 # NuGet.org rejects re-upload of an existing version; --skip-duplicate keeps a
 # re-run idempotent rather than failing.
 
@@ -10,7 +10,7 @@ on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Pack and upload the artifact only; do not attest or push to NuGet.org'
+        description: 'Pack and list the package only; do not attest or push to NuGet.org'
         required: false
         default: false
         type: boolean
@@ -19,23 +19,27 @@ permissions:
   contents: read
 
 concurrency:
-  # Pushing to the public NuGet feed mutates external state — never cancel a run
+  # Pushing to the public NuGet feed mutates external state - never cancel a run
   # mid-push (it would leave a partial upload); queue the next dispatch instead.
   group: publish-templates
   cancel-in-progress: false
 
 jobs:
+  # NuGet.org trusted publishing: the job proves its identity with GitHub's OIDC token and receives a
+  # one-hour, single-use API key for this push, so no long-lived key is stored. The nuget.org policy
+  # names this repository, this workflow file and the publish-packages environment, so another
+  # workflow or a run without the approval cannot obtain a key.
   publish:
     name: Pack and publish Abblix.Templates
     runs-on: ubuntu-latest
-    # NuGet.org publish sits behind the environment approval gate: the
-    # NUGET_API_KEY secret is unreachable until a reviewer approves the run.
+    # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
+    # key exchange needs lives in this environment.
     environment: publish-packages
     # 10m override on the 5m baseline: NuGet.org index sync after push can lag.
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # Sigstore OIDC for build-provenance attestation
+      id-token: write # Sigstore OIDC for build-provenance attestation, and the NuGet.org key exchange
       attestations: write # record SLSA L3 provenance in the repo
     steps:
       - name: Harden runner (audit egress)
@@ -45,11 +49,27 @@ jobs:
           disable-telemetry: true
         timeout-minutes: 3
 
+      # Refuses before anything is packed or attested: a missing setup is the likeliest failure of
+      # the first real run, and a refusal after the attestation would leave one for a package that
+      # was never published.
+      - name: NuGet.org user for trusted publishing
+        if: ${{ !inputs.dry_run }}
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        run: |
+          if [ -z "$NUGET_USER" ]; then
+            echo "::error title=NuGet.org trusted publishing::The publish-packages environment has no NUGET_USER secret. Skipped step: create the trusted publishing policy at https://www.nuget.org/account/trustedpublishing (owner Abblix; repository owner Abblix, repository Templates, workflow file publish-templates.yml, environment publish-packages, scope allowing new packages and new versions for the glob Abblix.Templates) and set the publish-packages environment secret NUGET_USER to the nuget.org profile name of the policy creator, then re-run the failed job"
+            exit 1
+          fi
+        timeout-minutes: 3
+
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
         timeout-minutes: 3
 
+      # The packing project targets net10.0 and carries the templates as content only, so the
+      # templates' own net11.0 target needs no .NET 11 SDK here.
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
@@ -71,8 +91,25 @@ jobs:
           done
         timeout-minutes: 3
 
+      # Requested before the attestation, so a run NuGet.org issues no key to leaves no attestation
+      # behind; the key is valid for one hour, far longer than the steps up to the push.
+      - name: Get a short-lived NuGet.org key
+        id: login
+        if: ${{ !inputs.dry_run }}
+        uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
+        with:
+          user: ${{ secrets.NUGET_USER }}
+        timeout-minutes: 3
+
+      - name: Name the skipped step when no key was issued
+        if: ${{ failure() && steps.login.outcome == 'failure' }}
+        run: |
+          echo "::error title=NuGet.org trusted publishing::NuGet.org issued no key for this run. Skipped step: create the trusted publishing policy at https://www.nuget.org/account/trustedpublishing (owner Abblix; repository owner Abblix, repository Templates, workflow file publish-templates.yml, environment publish-packages, scope allowing new packages and new versions for the glob Abblix.Templates) and set the publish-packages environment secret NUGET_USER to the nuget.org profile name of the policy creator; if the policy shows as inactive because its 7-day window passed without a publish, restart the window there. Then re-run the failed job"
+          exit 1
+        timeout-minutes: 3
+
       - name: Attest build provenance
-        # Only for real publishes — provenance records repo attestation state,
+        # Only for real publishes - provenance records repo attestation state,
         # so a dry run must not leave an attestation for an unpublished package.
         if: ${{ !inputs.dry_run }}
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
@@ -81,9 +118,10 @@ jobs:
         timeout-minutes: 3
 
       - name: Push to NuGet.org
+        id: push
         if: ${{ !inputs.dry_run }}
         env:
-          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
+          NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
           set -euo pipefail
           for pkg in nupkg/*.nupkg; do
@@ -94,6 +132,13 @@ jobs:
               --skip-duplicate
           done
         timeout-minutes: 5
+
+      - name: Name the skipped step when NuGet.org refused the package
+        if: ${{ failure() && steps.push.outcome == 'failure' }}
+        run: |
+          echo "::error title=NuGet.org trusted publishing::NuGet.org refused Abblix.Templates; the push log above names the reason. Skipped step: when it names ownership or the key, make the trusted publishing policy's owner (Abblix) an owner of Abblix.Templates and let the policy's scope allow new packages and new versions for the glob Abblix.Templates at https://www.nuget.org/account/trustedpublishing, then re-run the failed job. When it names the package itself (id, version, metadata), fix Abblix.Templates.csproj, commit, and dispatch the workflow anew from the branch carrying the fix: a re-run packs the same commit again"
+          exit 1
+        timeout-minutes: 3
 
       - name: Summary
         run: |
