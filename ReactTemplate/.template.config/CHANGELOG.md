@@ -26,7 +26,8 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Security
 
-- The lockfile of 2.0.1 pinned development tools with published advisories, and the move to Vite 8 and oxlint leaves all but one of them behind: picomatch (GHSA-fc5q-39xc-vjpf, a high-severity ReDoS) has no fixed release yet, so `npm audit` still reports it. Among the high-severity ones: Vite 7.3.1 (GHSA-p9ff-h696-f583, arbitrary file read through the dev server WebSocket; GHSA-v2wj-q39q-566r, `server.fs.deny` bypass; GHSA-587h-7wmj-h5pm in launch-editor), Rollup 4.57.1 (GHSA-mw96-cpmx-2vgc, arbitrary file write), postcss 8.5.6 (GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849, arbitrary .map file read) and source-map-js 1.2.1 (GHSA-68fv-2mgg-jv7q, denial of service). The lockfile now pins Vite 8.3.8, postcss 8.5.33 and source-map-js 1.2.2. None of these packages reach the published application.
+- The lockfile of 2.0.1 pinned development tools with published advisories. The high-severity ones include Vite 7.3.1 (GHSA-p9ff-h696-f583, arbitrary file read through the dev server WebSocket; GHSA-v2wj-q39q-566r, `server.fs.deny` bypass; GHSA-587h-7wmj-h5pm in launch-editor), Rollup 4.57.1 (GHSA-mw96-cpmx-2vgc, arbitrary file write), postcss 8.5.6 (GHSA-6g55-p6wh-862q and GHSA-r28c-9q8g-f849, arbitrary .map file read) and source-map-js 1.2.1 (GHSA-68fv-2mgg-jv7q, denial of service). None of these packages reach the published application.
+- With the move to Vite 8 and oxlint, the lockfile now pins Vite 8.3.8, postcss 8.5.33 and source-map-js 1.2.2, which leaves every advisory against the 2.0.1 tools behind except one: picomatch (GHSA-fc5q-39xc-vjpf, a high-severity ReDoS) has no fixed release yet, so `npm audit` still reports it.
 
 ## 2.0.1 - 2026-02-19
 
