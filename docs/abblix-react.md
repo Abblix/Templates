@@ -89,4 +89,4 @@ In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with 
 dotnet publish -c Release
 ```
 
-Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers any path that is not one of its files with `index.html`.
+Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers a path without a file extension that matches nothing else with `index.html`, so a client-side route survives a reload. A missing file such as `/missing.js` answers 404.
