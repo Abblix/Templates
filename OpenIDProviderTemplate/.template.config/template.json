@@ -84,7 +84,7 @@
     "forms": {
         "cSharpString": {
             "identifier": "chain",
-            "steps": [ "escapeBackslash", "escapeQuote" ]
+            "steps": [ "escapeBackslash", "escapeQuote", "escapeCarriageReturn", "escapeLineFeed", "escapeNextLine", "escapeLineSeparator", "escapeParagraphSeparator" ]
         },
         "escapeBackslash": {
             "identifier": "replace",
@@ -95,6 +95,31 @@
             "identifier": "replace",
             "pattern": "\"",
             "replacement": "\\\""
+        },
+        "escapeCarriageReturn": {
+            "identifier": "replace",
+            "pattern": "\\r",
+            "replacement": "\\r"
+        },
+        "escapeLineFeed": {
+            "identifier": "replace",
+            "pattern": "\\n",
+            "replacement": "\\n"
+        },
+        "escapeNextLine": {
+            "identifier": "replace",
+            "pattern": "\\u0085",
+            "replacement": "\\u0085"
+        },
+        "escapeLineSeparator": {
+            "identifier": "replace",
+            "pattern": "\\u2028",
+            "replacement": "\\u2028"
+        },
+        "escapeParagraphSeparator": {
+            "identifier": "replace",
+            "pattern": "\\u2029",
+            "replacement": "\\u2029"
         }
     }
 }
