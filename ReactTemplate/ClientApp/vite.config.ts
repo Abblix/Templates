@@ -20,6 +20,8 @@ const keyPath = path.resolve(certFolder, `localhost.key`);
 // since renewed would make the proxy refuse the host.
 function devServerHttps() {
   console.log(`Exporting the development certificate (${certPath}, ${keyPath})...`);
+  // dev-certs refuses to export into a missing folder; the folder holds the private key, so owner only.
+  fs.mkdirSync(certFolder, { recursive: true, mode: 0o700 });
   execSync(`dotnet dev-certs https --export-path "${certPath}" --format Pem --no-password`);
 
   return {
