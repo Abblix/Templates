@@ -20,9 +20,16 @@ const keyPath = path.resolve(certFolder, `localhost.key`);
 // since renewed would make the proxy refuse the host.
 function devServerHttps() {
   console.log(`Exporting the development certificate (${certPath}, ${keyPath})...`);
-  // dev-certs refuses to export into a missing folder; the folder holds the private key, so owner only.
-  fs.mkdirSync(certFolder, { recursive: true, mode: 0o700 });
+  // dev-certs refuses to export into a missing folder.
+  fs.mkdirSync(certFolder, { recursive: true });
   execSync(`dotnet dev-certs https --export-path "${certPath}" --format Pem --no-password`);
+  // The key is written unencrypted, and a folder or key left by an earlier export keeps whatever permissions
+  // it had. Outside Windows, where Unix modes apply, every export makes the folder owner-only (0700) and the
+  // key owner read-write (0600).
+  if (process.platform !== 'win32') {
+    fs.chmodSync(certFolder, 0o700);
+    fs.chmodSync(keyPath, 0o600);
+  }
 
   return {
     cert: fs.readFileSync(certPath, 'utf-8'),
@@ -46,8 +53,9 @@ function devServer() {
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   server: {
+    // No `host`: the dev server stays on localhost. On every network address, the /api proxy would hand the
+    // host's endpoints to any machine on the network.
     port: 3000,
-    host: true,
     ...(command === 'serve' ? devServer() : {}),
   },
 }))

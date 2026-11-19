@@ -9,9 +9,14 @@ function App() {
 
   useEffect(() => {
     fetch('/api/greeting')
-      .then((response) => response.json())
+      .then((response) => {
+        if (!response.ok) {
+          throw new Error(`The host answered /api/greeting with ${response.status}`)
+        }
+        return response.json()
+      })
       .then((data: { message: string }) => setGreeting(data.message))
-      .catch(() => setGreeting('The host did not answer /api/greeting'))
+      .catch((error: Error) => setGreeting(error.message))
   }, [])
 
   return (
