@@ -48,15 +48,25 @@
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "",
-            "replaces": "SAMPLE_USER_EMAIL",
             "description": "Email/login of a dev sample user to pre-seed. If omitted, no sample user is created."
         },
         "password": {
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "Passw0rd!",
-            "replaces": "SAMPLE_USER_PASSWORD",
             "description": "Password for the --user sample account. Dev-only: stored and compared in plaintext. Ignored when --user is omitted."
+        },
+        "userInCSharp": {
+            "type": "derived",
+            "valueSource": "user",
+            "valueTransform": "cSharpString",
+            "replaces": "SAMPLE_USER_EMAIL"
+        },
+        "passwordInCSharp": {
+            "type": "derived",
+            "valueSource": "password",
+            "valueTransform": "cSharpString",
+            "replaces": "SAMPLE_USER_PASSWORD"
         },
         "HasSampleUser": {
             "type": "computed",
@@ -69,6 +79,22 @@
             "parameters": {
                 "defaultFormat": "D"
             }
+        }
+    },
+    "forms": {
+        "cSharpString": {
+            "identifier": "chain",
+            "steps": [ "escapeBackslash", "escapeQuote" ]
+        },
+        "escapeBackslash": {
+            "identifier": "replace",
+            "pattern": "\\\\",
+            "replacement": "\\\\"
+        },
+        "escapeQuote": {
+            "identifier": "replace",
+            "pattern": "\"",
+            "replacement": "\\\""
         }
     }
 }
