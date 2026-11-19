@@ -29,6 +29,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 ### Changed
 
+- The login page asks for an email or login in a plain text field, so a `--user` value that is not an email address signs in too. 2.x took only an email address there.
 - The template's display name, shown by `dotnet new list` and in the Visual Studio dialog, is now "Abblix OpenID Provider - Getting Started (in-memory)", where 2.x showed "ASP.NET Core OpenID Provider".
 - The browser tab shows the Abblix icon, and the footer links to the Abblix OIDC Server repository on GitHub instead of the home page.
 - The README is rewritten for 3.0. It also asks deployers to set `AllowedHosts` to the issuer's host name instead of `*`, since the provider builds its endpoint addresses from the host a request arrives with.
