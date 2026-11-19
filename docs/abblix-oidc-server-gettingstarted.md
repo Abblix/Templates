@@ -37,7 +37,7 @@ dotnet new abblix-oidc-server-gettingstarted -n MyProvider --https-port 7100 --u
 `dotnet new abblix-oidc-server-gettingstarted -h` lists every option of the installed version, with its type, default and description. The main ones:
 
 - `--https-port` sets the HTTPS port the provider is served on, as in `--https-port 7100`. The port is written into the issuer in `Program.cs`, the launch profile and `requests.http`. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
-- `--user` adds a development user named Demo User to the in-memory store, as in `--user alice@example.com`. The value is the login typed on the login page: an email address or any other text. Without `--user`, the store starts with no user.
+- `--user` adds a development user named Demo User to the in-memory store, as in `--user alice@example.com`. The value is the login typed on the login page: an email address or any other text on one line. Without `--user`, the store starts with no user.
 - `--password` sets the password of that user, as in `--password "Passw0rd!"`, which is also its default. It is written into `Program.cs` and compared in plain text. Without `--user` it has no effect.
 
 ## Creating a project from an IDE

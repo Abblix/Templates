@@ -117,7 +117,8 @@ jobs:
       - name: OIDC provider (Identity + EF) - scaffold, build, send its requests
         # The production template: Identity + EF/SQLite users, durable client and
         # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
-        # runs it (seeds SQLite on first start; no --user so no console pause) and
+        # runs it (seeds SQLite and the --user on first start; --password is given, so no console pause;
+        # its quote and backslash land in a C# literal, so a broken escaping form fails the build) and
         # sends the requests of its requests.http: discovery, jwks, a client credentials token and its
         # introspection. The heaviest step: cold npm install, vite build, EF restore.
         # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
@@ -131,7 +132,7 @@ jobs:
         run: |
           set -euo pipefail
           work="$RUNNER_TEMP/oidc"
-          dotnet new abblix-oidc-server -n SmokeOidc -o "$work"
+          dotnet new abblix-oidc-server -n SmokeOidc -o "$work" --user smoke@example.com --password 'Sm0ke!"pass\word'
           url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
           port="${url##*:}"
           [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
@@ -216,6 +217,8 @@ jobs:
         # The learning template: in-memory stores and an ephemeral key, no npm.
         # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
         # generator's range, so a project that ignored the option could not pass by chance.
+        # --user and --password carry a quote, a backslash and braces, which land in C# literals in
+        # Program.cs: a broken escaping form leaves a literal the build refuses.
         env:
           # For the reason given in the step above: console_client exists only in Development.
           ASPNETCORE_ENVIRONMENT: Development
@@ -223,7 +226,7 @@ jobs:
           set -euo pipefail
           work="$RUNNER_TEMP/oidc-gs"
           url="https://localhost:5443"
-          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work" --https-port 5443
+          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work" --https-port 5443 --user 'a"b\{c}' --password 'p"\q'
           jq -e --arg url "$url" '.profiles.https.applicationUrl == $url' "$work/Properties/launchSettings.json" > /dev/null ||
             { echo "::error::launchSettings.json does not name $url, the address given with --https-port"; exit 1; }
           dotnet build "$work" -c Release
