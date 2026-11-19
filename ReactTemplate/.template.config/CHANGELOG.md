@@ -22,7 +22,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 - The browser tab shows the Abblix icon (`favicon.svg`) instead of the Vite one.
 - The Vite dev server listens on `localhost` only. 2.x set `server.host: true`, which listens on every network address, and with the `/api` proxy that would let any machine on the network call the host's endpoints through Vite while the host itself listens on `localhost`.
-- The Vite dev server exports the development certificate on every start. Outside Windows it then makes the certificate folder accessible to its owner only and the unencrypted key file readable and writable by its owner only, whatever permissions they had before. 2.x exported it only when the PEM files were missing, so after the certificate was renewed the dev server kept serving the old copy.
+- The Vite dev server exports the development certificate on every start. Outside Windows it makes the certificate folder accessible to its owner only before the export, and the unencrypted key file readable and writable by its owner only after it, whatever permissions they had before. 2.x exported it only when the PEM files were missing, so after the certificate was renewed the dev server kept serving the old copy.
 - The READMEs describe oxlint instead of ESLint, and give the application's address as `https://localhost:<port>` with the port chosen at creation, where 2.x gave `http://localhost:5000`. `@types/node` moves from 24 to 26.
 
 ### Fixed

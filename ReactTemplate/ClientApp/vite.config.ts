@@ -20,14 +20,17 @@ const keyPath = path.resolve(certFolder, `localhost.key`);
 // since renewed would make the proxy refuse the host.
 function devServerHttps() {
   console.log(`Exporting the development certificate (${certPath}, ${keyPath})...`);
-  // dev-certs refuses to export into a missing folder.
-  fs.mkdirSync(certFolder, { recursive: true });
-  execSync(`dotnet dev-certs https --export-path "${certPath}" --format Pem --no-password`);
   // The key is written unencrypted, and a folder or key left by an earlier export keeps whatever permissions
-  // it had. Outside Windows, where Unix modes apply, every export makes the folder owner-only (0700) and the
-  // key owner read-write (0600).
-  if (process.platform !== 'win32') {
+  // it had. Outside Windows, where Unix modes apply, the folder is made owner-only (0700) before the export,
+  // so the fresh key never sits where other users can enter, and the key owner read-write (0600) after it.
+  // dev-certs refuses to export into a missing folder, hence mkdirSync.
+  const unixModes = process.platform !== 'win32';
+  fs.mkdirSync(certFolder, { recursive: true });
+  if (unixModes) {
     fs.chmodSync(certFolder, 0o700);
+  }
+  execSync(`dotnet dev-certs https --export-path "${certPath}" --format Pem --no-password`);
+  if (unixModes) {
     fs.chmodSync(keyPath, 0o600);
   }
 

@@ -8,15 +8,20 @@ function App() {
   const [greeting, setGreeting] = useState('')
 
   useEffect(() => {
-    fetch('/api/greeting')
-      .then((response) => {
+    const load = async () => {
+      try {
+        const response = await fetch('/api/greeting')
         if (!response.ok) {
-          throw new Error(`The host answered /api/greeting with ${response.status}`)
+          setGreeting(`/api/greeting answered ${response.status}`)
+          return
         }
-        return response.json()
-      })
-      .then((data: { message: string }) => setGreeting(data.message))
-      .catch((error: Error) => setGreeting(error.message))
+        const data: { message: string } = await response.json()
+        setGreeting(data.message)
+      } catch {
+        setGreeting('/api/greeting could not be read')
+      }
+    }
+    void load()
   }, [])
 
   return (
