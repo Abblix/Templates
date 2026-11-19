@@ -242,8 +242,8 @@ jobs:
           done
           jwks=0
           curl -skf "$url/.well-known/jwks" -o jwks-gs.json && jwks=1
-          # The last two requests of the project's requests.http: a token for console_client from the client
-          # credentials grant, then introspection of that token by the same client.
+          # The third and fourth requests of the project's requests.http: a token for console_client from the
+          # client credentials grant, then introspection of that token by the same client.
           token=0
           curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
             -d client_secret=secret -o token-gs.json && token=1
