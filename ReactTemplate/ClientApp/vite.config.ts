@@ -30,11 +30,24 @@ function devServerHttps() {
   };
 }
 
+// The app calls the host by relative paths, which the dev server forwards to the host's HTTPS address.
+// The host serves the same development certificate, so the proxy trusts it as its CA rather than
+// turning certificate checks off.
+function devServer() {
+  const https = devServerHttps();
+  return {
+    https,
+    proxy: {
+      '/api': { target: 'https://localhost:5000', ca: https.cert },
+    },
+  };
+}
+
 export default defineConfig(({ command }) => ({
   plugins: [react()],
   server: {
     port: 3000,
     host: true,
-    ...(command === 'serve' ? { https: devServerHttps() } : {}),
+    ...(command === 'serve' ? devServer() : {}),
   },
 }))

@@ -92,7 +92,9 @@ dotnet run
 
 The host starts at `https://localhost:5000` and the browser opens there, then follows the redirect to the Vite dev server at `https://localhost:3000`, where changes under `ClientApp/src` reload without restarting the host. Both ports were chosen when the project was created: the ones given with `--https-port` and `--spa-proxy-port`, or free ports the template picked.
 
-The Vite dev server serves HTTPS with the ASP.NET Core development certificate. Trust it once with `dotnet dev-certs https --trust`.
+The application calls the host by relative paths. `App.tsx` fetches `/api/greeting`, an endpoint in `Program.cs`, and shows its message under the heading. When the page comes from the Vite dev server, the call goes to Vite, which forwards every path under `/api` to the host at `https://localhost:5000`. A published host answers it itself. To forward another prefix, add it to `server.proxy` in `ClientApp/vite.config.ts`.
+
+The Vite dev server serves HTTPS with the ASP.NET Core development certificate. Trust it once with `dotnet dev-certs https --trust`. The host serves the same certificate, and the proxy checks the host against it.
 
 In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with `tsc` and builds the application into `ClientApp/dist`. `dotnet publish -c Release` builds the application and copies it into the published `wwwroot`.
 
@@ -119,10 +121,10 @@ In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with 
 ```
 
 - ClientApp/: the React application, with its npm scripts described in `ClientApp/README.md`.
-- ClientApp/vite.config.ts: the Vite dev server's port and its HTTPS certificate.
+- ClientApp/vite.config.ts: the Vite dev server's port, its HTTPS certificate, and the proxy that forwards `/api` to the host.
 - Properties/launchSettings.json: the `https` launch profile on the host's port.
 - MyNewProject.csproj: the SPA proxy settings and the npm steps of build and publish.
-- Program.cs: the host, serving static files and falling back to `index.html`.
+- Program.cs: the host, with the `/api/greeting` endpoint, serving static files and falling back to `index.html`.
 
 ## 📃 License
 
