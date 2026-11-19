@@ -13,7 +13,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Added
 
-- `--https-port` sets the HTTPS port the host is served on, and `--spa-proxy-port` the port of the Vite dev server the host proxies to during development. When either is omitted or 0, a free port is picked, between 7000 and 7300 for the host and between 5173 and 5273 for Vite, so two projects created one after another no longer share a port. In 2.x every project used 5000 and 3000.
+- `--https-port` sets the HTTPS port the host is served on, and `--spa-proxy-port` the port of the Vite dev server the host starts during development. When either is omitted or 0, a port free on the machine is picked at random as the project is created, between 7000 and 7300 for the host and between 5173 and 5273 for Vite. In 2.x every project used 5000 and 3000.
 - The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `ReactApp` as the project name.
 
 ### Changed

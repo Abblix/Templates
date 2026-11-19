@@ -30,7 +30,7 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "HTTPS port the ASP.NET Core host is served on. If omitted, a free port between 7000 and 7300 is picked (0 picks one)."
+            "description": "HTTPS port the ASP.NET Core host is served on. When omitted or 0, a port free on this machine is picked at random between 7000 and 7300 as the project is created."
         },
         "HttpsPortGenerated": {
             "type": "generated",
@@ -53,7 +53,7 @@
         "SpaProxyPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "Port of the Vite dev server the host proxies to during development. If omitted, a free port between 5173 and 5273 is picked (0 picks one)."
+            "description": "Port of the Vite dev server the host starts during development. When omitted or 0, a port free on this machine is picked at random between 5173 and 5273 as the project is created."
         },
         "SpaProxyPortGenerated": {
             "type": "generated",

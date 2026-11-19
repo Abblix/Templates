@@ -24,7 +24,7 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "HTTPS port the provider is served on and names in its issuer. If omitted, a free port between 7000 and 7300 is picked (0 picks one)."
+            "description": "HTTPS port the provider is served on and names in its issuer. When omitted or 0, a port free on this machine is picked at random between 7000 and 7300 as the project is created."
         },
         "HttpsPortGenerated": {
             "type": "generated",

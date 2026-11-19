@@ -18,7 +18,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 ### Added
 
-- `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a free port between 7000 and 7300 is picked, so two projects created one after another no longer share a port. In 2.x every project used 5001.
+- `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created. In 2.x every project used 5001.
 - `--user` and `--password` seed a development sample user into the in-memory store; without `--user` the store starts empty. The password defaults to `Passw0rd!` and is stored and compared in plaintext.
 - `requests.http`, to send from Visual Studio, JetBrains Rider or VS Code against the running provider: the discovery document, the published keys, an access token from the client credentials grant and introspection of that token. Its address follows the project's port.
 - `console_client` in `appsettings.Development.json`, for the client credentials grant only, with the secret `secret` published with the template. Because that secret is public, the client gets no token for a registered API.
