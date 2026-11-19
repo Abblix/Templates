@@ -23,6 +23,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Fixed
 
+- The short names `react-net10`, `react-typescript` and `react-vite` create a project. 2.x listed them under `aliases`, a property the template engine does not read, so only `abblix-react` found the template.
 - A new project no longer receives a prebuilt `ClientApp/dist` from the package; 2.0.0 and 2.0.1 shipped one it never needed.
 
 ### Security
@@ -42,7 +43,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 - The front end moves to React 19, Vite 6 and ESLint 9 with the flat configuration in `eslint.config.js`, which replaces `.eslintrc.cjs`.
 - The unused `react-router-dom` dependency is removed.
 - Publishing takes the Vite output from `ClientApp/dist` instead of `ClientApp/build`.
-- The alias `react-net8` becomes `react-net10`.
+- The name listed under `aliases` changes from `react-net8` to `react-net10`. The template engine read neither; 3.0.0 makes `react-net10` a short name that works.
 
 ## 1.2.0 - 2025-08-14
 

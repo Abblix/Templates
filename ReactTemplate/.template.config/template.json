@@ -15,8 +15,8 @@
     "identity": "Abblix.ReactTemplate",
     "sourceName": "ReactTemplate",
     "defaultName": "ReactApp",
-    "shortName": "abblix-react",
-    "aliases": [
+    "shortName": [
+        "abblix-react",
         "react-net10",
         "react-typescript",
         "react-vite"

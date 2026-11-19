@@ -6,7 +6,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 ### Upgrading a project created from 2.x
 
-- The short name changed. In 2.x, `dotnet new abblix-oidc-server` created this in-memory provider. That name now creates the production-shaped provider on ASP.NET Core Identity and EF Core, together with the aliases `oidc-server`, `oauth2-server` and `openidconnect`; this template is `abblix-oidc-server-gettingstarted`.
+- The short name changed. In 2.x, `dotnet new abblix-oidc-server` created this in-memory provider. That name now creates the production-shaped provider on ASP.NET Core Identity and EF Core, and so do the short names `oidc-server`, `oauth2-server` and `openidconnect`; this template is `abblix-oidc-server-gettingstarted`.
 - The project targets .NET 11 and references Abblix.Oidc.Server.Mvc 3.0.0, up from .NET 10 and 2.2.
 - The provider declares its issuer as one tenant: `AddOidcServices` adds a `TenantDefinition` to `options.Tenants`, and `LoginUri` and `SigningKeys` are set on it instead of on the options themselves.
 - The issuer is now fixed in `Program.cs` as `https://localhost:<port>`, the port the project is served on. In 2.x no issuer was set, so it came from the host each request arrived on. Before deploying, set `Issuer` to the provider's public address, or clients reject its tokens.

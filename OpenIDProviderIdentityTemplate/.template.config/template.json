@@ -15,8 +15,8 @@
     "identity": "Abblix.OpenIDProviderIdentityTemplate",
     "sourceName": "AspNetIdentitySample",
     "defaultName": "OpenIDProvider",
-    "shortName": "abblix-oidc-server",
-    "aliases": [
+    "shortName": [
+        "abblix-oidc-server",
         "oidc-server",
         "oauth2-server",
         "openidconnect"

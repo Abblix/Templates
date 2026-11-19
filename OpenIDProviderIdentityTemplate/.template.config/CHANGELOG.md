@@ -6,7 +6,8 @@ What changed in the project that the OpenIDProviderIdentityTemplate creates, ver
 
 First release of this template.
 
-- The short name `abblix-oidc-server` and its aliases `oidc-server`, `oauth2-server` and `openidconnect` now create this provider. In 2.x they created the in-memory provider, which is now `abblix-oidc-server-gettingstarted`; a project created from that one is described in its own changelog.
+- The short name `abblix-oidc-server` now creates this provider. In 2.x it created the in-memory provider, which is now `abblix-oidc-server-gettingstarted`; a project created from that one is described in its own changelog.
+- The short names `oidc-server`, `oauth2-server` and `openidconnect` create this provider too. 2.x listed them under `aliases`, a property the template engine does not read, so `dotnet new oidc-server` found no template.
 - An OpenID Provider on ASP.NET Core MVC and Abblix OIDC Server 3.0.0 for .NET 11, serving one issuer declared as a tenant. The issuer is fixed in `Program.cs` as `https://localhost:<port>`; before deploying, set `Issuer` to the provider's public address, or clients reject its tokens. In 2.x, `abblix-oidc-server` set no issuer and took it from the host each request arrived on.
 - ASP.NET Core Identity keeps the users on EF Core 11 with SQLite and stores their passwords as salted hashes.
 - Client registrations and the signing key are stored in SQLite too, so a restart keeps them and tokens issued before it still validate. The signing key is protected with ASP.NET Core Data Protection, whose key ring is a local folder; a build warning says what a real deployment uses instead.
