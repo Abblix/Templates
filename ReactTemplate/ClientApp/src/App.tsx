@@ -1,10 +1,28 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
 
 function App() {
   const [count, setCount] = useState(0)
+  const [greeting, setGreeting] = useState('')
+
+  useEffect(() => {
+    const load = async () => {
+      try {
+        const response = await fetch('/api/greeting')
+        if (!response.ok) {
+          setGreeting(`/api/greeting answered ${response.status}`)
+          return
+        }
+        const data: { message: string } = await response.json()
+        setGreeting(data.message)
+      } catch {
+        setGreeting('/api/greeting could not be read')
+      }
+    }
+    void load()
+  }, [])
 
   return (
     <>
@@ -17,6 +35,7 @@ function App() {
         </a>
       </div>
       <h1>Vite + React</h1>
+      <p>{greeting}</p>
       <div className="card">
         <button onClick={() => setCount((count) => count + 1)}>
           count is {count}
