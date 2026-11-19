@@ -1,4 +1,16 @@
 {
   "$schema": "http://json.schemastore.org/vs-2017.3.host",
-  "icon": "icon.png"
+  "icon": "icon.png",
+  "symbolInfo": [
+    {
+      "id": "HttpsPort",
+      "name": { "text": "HTTPS port" },
+      "isVisible": true
+    },
+    {
+      "id": "SpaProxyPort",
+      "name": { "text": "Vite dev server port" },
+      "isVisible": true
+    }
+  ]
 }

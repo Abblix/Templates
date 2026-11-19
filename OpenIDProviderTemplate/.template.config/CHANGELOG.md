@@ -25,7 +25,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 - Token introspection (RFC 7662) is switched on with `AddIntrospection()` and advertised in the discovery document.
 - `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo client's published secret.
 - Build warnings (CS1030) mark what to replace before production: the in-memory user store, the plaintext password check, the signing key generated at every startup and the in-memory distributed cache. Each warning names the fix and links the matching guide.
-- The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name.
+- The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name. `ide.host.json` marks `--https-port`, `--user` and `--password` as options for that dialog to show.
 
 ### Changed
 
