@@ -265,11 +265,16 @@ jobs:
             authorization_code=$(python3 -I -c 'import sys, urllib.parse as p
           u = p.urlsplit(sys.argv[1]); q = p.parse_qs(u.query)
           assert p.urlunsplit(u._replace(query="")) == "http://127.0.0.1/callback" and q["state"] == ["smoke"], u
-          print(q["code"][0])' "$callback") &&
-            curl -skf "$url/connect/token" -d grant_type=authorization_code --data-urlencode "code=$authorization_code" \
-              -d redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk \
-              -d client_id=test_client -d client_secret=secret -o code-token-gs.json; then
+          print(q["code"][0])' "$callback"); then
             signin=1
+          fi
+          # Without -f, so a refusal keeps its body, whose error and error_description the check below prints.
+          exchange=none
+          if [ "$signin" = 1 ]; then
+            exchange=$(curl -sk -o code-token-gs.json -w '%{http_code}' "$url/connect/token" -d grant_type=authorization_code \
+              --data-urlencode "code=$authorization_code" -d redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback \
+              -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk -d client_id=test_client -d client_secret=secret) ||
+              exchange=none
           fi
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
@@ -287,7 +292,12 @@ jobs:
           jq -e '.active == true and .client_id == "console_client"' introspection-gs.json > /dev/null ||
             { echo "::error::getting-started introspection does not report the token just issued as active for console_client"; exit 1; }
           [ "$signin" = 1 ] ||
-            { echo "::error::getting-started sign-in as test_client did not reach tokens: login page '${login:-}', after sign-in '${back:-}', callback '${callback:-}'"; exit 1; }
+            { echo "::error::getting-started sign-in as test_client did not reach a code: login page '${login:-}', after sign-in '${back:-}', callback '${callback:-}'"; exit 1; }
+          if [ "$exchange" != 200 ]; then
+            refusal=$(jq -r '"\(.error) (\(.error_description))"' code-token-gs.json 2>/dev/null) || refusal="no JSON body"
+            echo "::error::getting-started token endpoint answered the code of test_client with $exchange: $refusal"
+            exit 1
+          fi
           jq -e '(.id_token | type == "string") and (.access_token | type == "string") and .token_type == "Bearer"' code-token-gs.json > /dev/null ||
             { echo "::error::getting-started token endpoint did not answer the code of test_client with an id_token and a Bearer access_token"; exit 1; }
           # Again in Production, where appsettings.json must declare no client, as in the step above.

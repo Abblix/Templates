@@ -94,7 +94,8 @@ You create a new project from this template by its short name, `abblix-oidc-serv
 ```shell
 # Creates a new project from this template
 # The '-n MyOpenIDProvider' specifies the name of the new project folder
-dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider
+# The '--user alice@example.com' adds a user to sign in with on the login page
+dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider --user alice@example.com
 ```
 
 `--user` adds a development user to the in-memory store, signing in with the login you give: an email address or any other text on one line. `--password` sets its password, `Passw0rd!` by default. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
@@ -165,7 +166,7 @@ dotnet run
 
 You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
 
-With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port. The file then walks through a sign-in as `test_client`: an authorization address to open in a browser, the login page, and the exchange of the code for tokens.
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port. The file then walks through a sign-in as `test_client`: an authorization address to open in a browser, the login page, where the user created with `--user` signs in (`alice@example.com` and `Passw0rd!` for the command above), and the exchange of the code for tokens.
 
 ## 🎨 Customization
 

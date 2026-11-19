@@ -60,7 +60,8 @@ token={{accessToken}}&client_id={{clientId}}&client_secret={{clientSecret}}
 #
 #     https://localhost:5001/connect/authorize?client_id=test_client&response_type=code&scope=openid%20profile%20email&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256&state=demo
 #
-# The provider shows its login page; sign in with the user created by --user. The browser is then sent to
+# The provider shows its login page; sign in there with the login and password given to dotnet new as
+# --user and --password (Passw0rd! when --password was left out). The browser is then sent to
 # http://127.0.0.1/callback?state=demo&code=...&iss=..., an address nothing in this project serves, so it
 # shows an error page: copy the code parameter from the address bar into @code at the top of this file and
 # send this request within a minute, the lifetime of a code.

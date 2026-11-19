@@ -21,10 +21,10 @@ dotnet new install Abblix.Templates
 Then create a project:
 
 ```shell
-dotnet new abblix-oidc-server-gettingstarted -n MyProvider
+dotnet new abblix-oidc-server-gettingstarted -n MyProvider --user alice@example.com
 ```
 
-`-n` names the project and its folder. Without it, the project takes the name of the current folder.
+`-n` names the project and its folder. Without it, the project takes the name of the current folder. `--user` adds a user to sign in with on the login page, `alice@example.com` with the default password `Passw0rd!`.
 
 A project with the main options set:
 
@@ -82,7 +82,7 @@ dotnet run
 
 With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token. They need no client application.
 
-The same file walks through a sign-in as `test_client`, with the user that `--user` created. Open the authorization address the file gives in a browser, and the provider shows its login page. After the sign-in, the browser goes to `http://127.0.0.1/callback?code=...`. Nothing in the project serves that address, so the browser shows an error page, but the code is in its address bar. Paste it into the file and send the token request within a minute, the lifetime of a code. The answer carries an ID token for the user and an access token.
+The same file walks through a sign-in as `test_client`. It signs in the user created with `--user`, as `alice@example.com` and `Passw0rd!` for the project created above. Open the authorization address the file gives in a browser, and the provider shows its login page. After the sign-in, the browser goes to `http://127.0.0.1/callback?code=...`. Nothing in the project serves that address, so the browser shows an error page, but the code is in its address bar. Paste it into the file and send the token request within a minute, the lifetime of a code. The answer carries an ID token for the user and an access token.
 
 Every start generates a new signing key and publishes it in place of the previous one.
 
