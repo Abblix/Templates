@@ -23,7 +23,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 - `requests.http`, to send from Visual Studio, JetBrains Rider or VS Code against the running provider: the discovery document, the published keys, an access token from the client credentials grant and introspection of that token, then a sign-in as `test_client` in a browser and the exchange of its code for tokens. Its address follows the project's port.
 - Two demo clients in `appsettings.Development.json`, both with the secret `secret` published with the template. `test_client` is for the authorization code flow with PKCE; its redirect URI `http://127.0.0.1/callback` accepts any port, and it signs out to `http://127.0.0.1/signed-out`. `console_client` is for the client credentials grant only; because its secret is public, it gets no token for a registered API.
 - Token introspection (RFC 7662) is switched on with `AddIntrospection()` and advertised in the discovery document.
-- `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo client's published secret.
+- `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo clients' published secret.
 - Build warnings (CS1030) mark what to replace before production: the in-memory user store, the plaintext password check, the signing key generated at every startup and the in-memory distributed cache. Each warning names the fix and links the matching guide.
 - The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name. `ide.host.json` marks `--https-port`, `--user` and `--password` as options for that dialog to show.
 

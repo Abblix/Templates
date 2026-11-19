@@ -66,7 +66,7 @@ MyProvider/
 
 `appsettings.Development.json` declares two demo clients under `Oidc:Clients`, both with the secret `secret`, which is published with this template:
 
-- `test_client`, for the authorization code flow with PKCE. Its redirect URI is `http://127.0.0.1/callback`, a loopback address with no port, so an authorization request may name any port there and a client application of your own can listen on whichever port is free. Users sign out to `http://127.0.0.1/signed-out`, matched exactly.
+- `test_client`, for the authorization code flow with PKCE. Its redirect URI is `http://127.0.0.1/callback`, a loopback address with no port, so an authorization request may name any port there and a client application of your own can listen on whichever port is free. Users sign out to `http://127.0.0.1/signed-out`, matched exactly, so a client of your own on another port adds its own address, such as `http://127.0.0.1:8080/signed-out`, to `PostLogoutRedirectUris`.
 - `console_client`, for the client credentials grant only. Its tokens are addressed to the provider itself: their audience is the issuer.
 
 `appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.

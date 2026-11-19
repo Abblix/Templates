@@ -255,7 +255,7 @@ jobs:
           # The sign-in that requests.http walks through in a browser, as test_client: the authorization request
           # answers with the login page, the --user signs in there, the provider sends the browser on to the
           # redirect URI with a code, and the code is exchanged for tokens with the verifier of code_challenge.
-          authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid&state=smoke&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
+          authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid%20profile%20email&state=smoke&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
           signin=0
           if login=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$authorize") &&
             [ "${login%%\?*}" = "$url/Auth/Login" ] &&
@@ -313,7 +313,7 @@ jobs:
             exit 1
           fi
           echo "OIDC getting-started template OK"
-        # Baseline 3m; measured 7s with the Production run.
+        # Baseline 3m; measured 9s and 32s with the sign-in and the Production run, in the SDK 11 image.
         timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
