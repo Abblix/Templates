@@ -14,16 +14,16 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 - `app.MapOidcControllers()` maps the protocol endpoints, because the library's controllers carry no routes of their own.
 - `AuthController.Login` finds the authorization endpoint with `IOidcEndpointResolver.Resolve(OidcEndpoints.Authorize)` instead of `IUriResolver.Content(Path.Authorize)`.
 - `TestUserStorage.GetUserInfoAsync` takes the `TenantDefinition` the request reached as its first parameter.
-- Clients are read from the `Oidc:Clients` configuration section instead of a commented example in `Program.cs`. Only `appsettings.Development.json` declares one, so a host started in any other environment has no client. A section the binder cannot read, or a client with no `ClientId`, stops startup with a message naming the section.
+- Clients are read from the `Oidc:Clients` configuration section instead of a commented example in `Program.cs`. Only `appsettings.Development.json` declares any, so a host started in any other environment has no client. A section the binder cannot read, or a client with no `ClientId`, stops startup with a message naming the section.
 
 ### Added
 
 - `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created. In 2.x every project used 5001.
 - `--user` and `--password` seed a development sample user into the in-memory store; without `--user` the store starts empty. The password defaults to `Passw0rd!` and is stored and compared in plaintext.
-- `requests.http`, to send from Visual Studio, JetBrains Rider or VS Code against the running provider: the discovery document, the published keys, an access token from the client credentials grant and introspection of that token. Its address follows the project's port.
-- `console_client` in `appsettings.Development.json`, for the client credentials grant only, with the secret `secret` published with the template. Because that secret is public, the client gets no token for a registered API.
+- `requests.http`, to send from Visual Studio, JetBrains Rider or VS Code against the running provider: the discovery document, the published keys, an access token from the client credentials grant and introspection of that token, then a sign-in as `test_client` in a browser and the exchange of its code for tokens. Its address follows the project's port.
+- Two demo clients in `appsettings.Development.json`, both with the secret `secret` published with the template. `test_client` is for the authorization code flow with PKCE; its redirect URI `http://127.0.0.1/callback` accepts any port, and it signs out to `http://127.0.0.1/signed-out`. `console_client` is for the client credentials grant only; because its secret is public, it gets no token for a registered API.
 - Token introspection (RFC 7662) is switched on with `AddIntrospection()` and advertised in the discovery document.
-- `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo client's published secret.
+- `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo clients' published secret.
 - Build warnings (CS1030) mark what to replace before production: the in-memory user store, the plaintext password check, the signing key generated at every startup and the in-memory distributed cache. Each warning names the fix and links the matching guide.
 - The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name. `ide.host.json` marks `--https-port`, `--user` and `--password` as options for that dialog to show.
 

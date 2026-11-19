@@ -21,10 +21,10 @@ dotnet new install Abblix.Templates
 Then create a project:
 
 ```shell
-dotnet new abblix-oidc-server-gettingstarted -n MyProvider
+dotnet new abblix-oidc-server-gettingstarted -n MyProvider --user alice@example.com
 ```
 
-`-n` names the project and its folder. Without it, the project takes the name of the current folder.
+`-n` names the project and its folder. Without it, the project takes the name of the current folder. `--user` adds a user to sign in with on the login page, `alice@example.com` with the default password `Passw0rd!`.
 
 A project with the main options set:
 
@@ -60,11 +60,16 @@ MyProvider/
 ├── README.md
 ├── TestUserStorage.cs             the in-memory user store
 ├── appsettings.json
-├── appsettings.Development.json   the demo client
+├── appsettings.Development.json   the demo clients
 └── requests.http                  requests to send against the running provider
 ```
 
-`appsettings.Development.json` declares one demo client under `Oidc:Clients`: `console_client`, for the client credentials grant only, with the secret `secret`, which is published with this template. Its tokens are addressed to the provider itself: their audience is the issuer. `appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.
+`appsettings.Development.json` declares two demo clients under `Oidc:Clients`, both with the secret `secret`, which is published with this template:
+
+- `test_client`, for the authorization code flow with PKCE. Its redirect URI is `http://127.0.0.1/callback`, a loopback address with no port, so an authorization request may name any port there and a client application of your own can listen on whichever port is free. Users sign out to `http://127.0.0.1/signed-out`, matched exactly, so a client of your own on another port adds its own address, such as `http://127.0.0.1:8080/signed-out`, to `PostLogoutRedirectUris`.
+- `console_client`, for the client credentials grant only. Its tokens are addressed to the provider itself: their audience is the issuer.
+
+`appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.
 
 ## Running the project
 
@@ -76,6 +81,8 @@ dotnet run
 `dotnet run` uses the launch profile, so the provider runs in the Development environment at `https://localhost:<port>`, the port chosen at creation. The discovery document is at `https://localhost:<port>/.well-known/openid-configuration`. Trust the ASP.NET Core development certificate once with `dotnet dev-certs https --trust`, so browsers and clients accept the address.
 
 With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token. They need no client application.
+
+The same file walks through a sign-in as `test_client`. It signs in the user created with `--user`, as `alice@example.com` and `Passw0rd!` for the project created above. Open the authorization address the file gives in a browser, and the provider shows its login page. After the sign-in, the browser goes to `http://127.0.0.1/callback?code=...`. Nothing in the project serves that address, so the browser shows an error page, but the code is in its address bar. Paste it into the file and send the token request within a minute, the lifetime of a code. The answer carries an ID token for the user and an access token.
 
 Every start generates a new signing key and publishes it in place of the previous one.
 

@@ -94,7 +94,8 @@ You create a new project from this template by its short name, `abblix-oidc-serv
 ```shell
 # Creates a new project from this template
 # The '-n MyOpenIDProvider' specifies the name of the new project folder
-dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider
+# The '--user alice@example.com' adds a user to sign in with on the login page
+dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider --user alice@example.com
 ```
 
 `--user` adds a development user to the in-memory store, signing in with the login you give: an email address or any other text on one line. `--password` sets its password, `Passw0rd!` by default. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
@@ -139,7 +140,7 @@ Understanding the structure of your project is crucial for effective development
 
 ## 🔧 Configuration
 
-The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, the clients read from the `Oidc:Clients` configuration section, and commented-out scopes and resources to fill in. Token introspection is switched on by `AddIntrospection()` next to it. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` holds only the logging and host filtering settings and declares no client. `appsettings.Development.json` declares one, `console_client`, for the client credentials grant only: its secret `secret` is published with this template, so it may get no token for a registered API, and a host started outside Development has no client at all. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
+The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, the clients read from the `Oidc:Clients` configuration section, and commented-out scopes and resources to fill in. Token introspection is switched on by `AddIntrospection()` next to it. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` holds only the logging and host filtering settings and declares no client. `appsettings.Development.json` declares two, both with the secret `secret`, published with this template: `test_client`, for the authorization code flow with PKCE and the loopback redirect URI `http://127.0.0.1/callback`, which accepts any port, and `console_client`, for the client credentials grant only, which may get no token for a registered API. A host started outside Development has no client at all. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
 
 Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
 
@@ -165,7 +166,7 @@ dotnet run
 
 You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
 
-With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port.
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port. The file then walks through a sign-in as `test_client`: an authorization address to open in a browser, the login page, where the user created with `--user` signs in (`alice@example.com` and `Passw0rd!` for the command above), and the exchange of the code for tokens.
 
 ## 🎨 Customization
 

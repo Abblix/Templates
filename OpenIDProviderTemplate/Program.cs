@@ -56,10 +56,10 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     //],
 
     // The clients the Oidc:Clients configuration section declares. Only appsettings.Development.json declares
-    // one, console_client, whose secret is published with this template, so a host started in any other
-    // environment has none. Add further clients there, in the same shape; a client's keys go in by JwksUri, since
-    // an inline Jwks cannot be bound from configuration. For production, register clients in a durable store
-    // instead. See https://docs.abblix.com/docs/durable-client-store
+    // any, test_client and console_client, whose secret is published with this template, so a host started in
+    // any other environment has none. Add further clients there, in the same shape; a client's keys go in by
+    // JwksUri, since an inline Jwks cannot be bound from configuration. For production, register clients in a
+    // durable store instead. See https://docs.abblix.com/docs/durable-client-store
     Clients = ReadClients(builder.Configuration),
 
     // The following URL leads to Login action of AuthController
