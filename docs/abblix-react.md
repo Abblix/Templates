@@ -7,7 +7,7 @@ The template lives in the [ReactTemplate](../ReactTemplate) folder. What changed
 ## Requirements
 
 - A .NET SDK that builds .NET 10, and the ASP.NET Core 10 runtime to run the host. The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) brings both; the .NET 11 SDK builds the project too, and running it then needs the ASP.NET Core 10 runtime installed beside it.
-- [Node.js](https://nodejs.org/) with npm. A Debug build installs the npm packages when `ClientApp/node_modules` is missing, `dotnet run` starts the Vite dev server with npm, and `dotnet publish` installs the packages and builds the application. A Release build alone does not run npm.
+- [Node.js](https://nodejs.org/) with npm. A Debug build installs the npm packages when `ClientApp/node_modules` is missing, `dotnet run` starts the Vite dev server with npm, and `dotnet publish` installs the packages and builds the application.
 
 ## Creating a project from the command line
 
@@ -23,28 +23,26 @@ Then create a project:
 dotnet new abblix-react -n MyApp
 ```
 
-`-n` names the project and its folder. Without it, the project takes the name of the current folder, or `ReactApp` in an IDE.
+`-n` names the project and its folder. Without it, the project takes the name of the current folder.
 
-A project with every option set:
+A project with the main options set:
 
 ```shell
 dotnet new abblix-react -n MyApp --https-port 7100 --spa-proxy-port 5200
 ```
 
+The short names `react-net10`, `react-typescript` and `react-vite` create the same project.
+
 ## Options
 
-| Option | Default | Example | What it does |
-| --- | --- | --- | --- |
-| `--https-port` | a free port between 7000 and 7300 | `--https-port 7100` | The HTTPS port the ASP.NET Core host is served on, written into the launch profile. `0` picks a free port, as when the option is left out. |
-| `--spa-proxy-port` | a free port between 5173 and 5273 | `--spa-proxy-port 5200` | The port of the Vite dev server, written into `SpaProxyServerUrl` in the project file and into `server.port` in `ClientApp/vite.config.ts`. `0` picks a free port, as when the option is left out. |
+`dotnet new abblix-react -h` lists every option of the installed version, with its type, default and description. The main ones:
 
-`dotnet new abblix-react -h` prints the options of the version you have installed, with their types and defaults.
+- `--https-port` sets the HTTPS port the ASP.NET Core host is served on, as in `--https-port 7100`, and writes it into the launch profile. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
+- `--spa-proxy-port` sets the port of the Vite dev server, as in `--spa-proxy-port 5200`, and writes it into `SpaProxyServerUrl` in the project file and into `server.port` in `ClientApp/vite.config.ts`. When the option is omitted or 0, a port free on the machine is picked at random between 5173 and 5273 as the project is created.
 
 ## Creating a project from an IDE
 
-After `dotnet new install Abblix.Templates`, Visual Studio lists the template in its New Project dialog as "ASP.NET Core MVC with React and Vite" and proposes `ReactApp` as the project name. In JetBrains Rider it appears under Custom Templates in the New Solution dialog.
-
-The Visual Studio dialog offers none of the options above, so a project created there gets generated ports. To choose the ports, create the project from the command line and open it in the IDE.
+Once the package is installed, the template is available in the IDE's new-project dialog as "ASP.NET Core MVC with React and Vite". Its `ide.host.json` marks both ports as visible, which is the setting Visual Studio reads to show an option in that dialog (per the `ide.host.json` schema).
 
 ## What the project contains
 
@@ -77,9 +75,9 @@ cd MyApp
 dotnet run
 ```
 
-`dotnet run` builds the host, installing the npm packages on the first run, and starts it at `https://localhost:<port>`, the port chosen at creation. The SPA proxy then starts the Vite dev server with `npm run dev`, and the browser opens on the host's address, which redirects it to the Vite dev server at `https://localhost:<spa-proxy-port>`. There, changes under `ClientApp/src` reload without restarting the host. The page runs on the Vite address, so a request it sends to a relative path reaches Vite, not the host. To call the host's own endpoints, add a `server.proxy` entry to `ClientApp/vite.config.ts`.
+`dotnet run` builds the host, installing the npm packages on the first run, and starts it at `https://localhost:<port>`, the port chosen at creation. The SPA proxy then starts the Vite dev server with `npm run dev`, and the browser opens on the host's address, which redirects it to the Vite dev server at `https://localhost:<spa-proxy-port>`. There, changes under `ClientApp/src` reload without restarting the host.
 
-The Vite dev server serves HTTPS with the ASP.NET Core development certificate. On its first start it exports the certificate with `dotnet dev-certs` into `%APPDATA%\ASP.NET\https` on Windows or `~/.aspnet/https` elsewhere. Trust the certificate once with `dotnet dev-certs https --trust`, or the browser refuses both addresses.
+The Vite dev server serves HTTPS with the ASP.NET Core development certificate. On its first start it exports the certificate with `dotnet dev-certs` into `%APPDATA%\ASP.NET\https` on Windows or `~/.aspnet/https` elsewhere. Trust the certificate once with `dotnet dev-certs https --trust`, so the browser accepts both addresses.
 
 In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with `tsc` and builds the application into `ClientApp/dist`.
 
@@ -89,4 +87,4 @@ In `ClientApp`, `npm run lint` runs oxlint and `npm run build` type-checks with 
 dotnet publish -c Release
 ```
 
-Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers a path without a file extension that matches nothing else with `index.html`, so a client-side route survives a reload. A missing file such as `/missing.js` answers 404.
+Publishing installs the npm packages, builds the application and copies `ClientApp/dist` into the published `wwwroot`. The published host serves the application and answers a path without a file extension that matches nothing else with `index.html`, so a client-side route survives a reload.

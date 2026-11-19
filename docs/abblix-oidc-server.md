@@ -23,21 +23,23 @@ Then create a project:
 dotnet new abblix-oidc-server -n MyProvider
 ```
 
-`-n` names the project and its folder. Without it, the project takes the name of the current folder, or `OpenIDProvider` in an IDE.
+`-n` names the project and its folder. Without it, the project takes the name of the current folder.
 
-A project with every option set:
+A project with the main options set:
 
 ```shell
 dotnet new abblix-oidc-server -n MyProvider --https-port 7100 --user alice@example.com --password "Str0ng-Passw0rd"
 ```
 
+The short names `oidc-server`, `oauth2-server` and `openidconnect` create the same project.
+
 ## Options
 
-| Option | Default | Example | What it does |
-| --- | --- | --- | --- |
-| `--https-port` | a free port between 7000 and 7300 | `--https-port 7100` | The HTTPS port the provider is served on. It is also written into the issuer in `Program.cs`, into the launch profile and into `requests.http`. `0` picks a free port, as when the option is left out. |
-| `--user` | none, so no user is created | `--user alice@example.com` | Seeds a development user into the Identity store at first run. The value is both the user's email address and login, so it has to be an email address: with `--user dev`, the first run stops with `Email 'dev' is invalid.` The user gets the name John Doe, returned for the `profile` scope. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. |
-| `--password` | a random password | `--password "Str0ng-Passw0rd"` | The password of the `--user` account. It must meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol. A password that breaks them stops the first run with an error listing the rules it breaks. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. Ignored without `--user`. |
+`dotnet new abblix-oidc-server -h` lists every option of the installed version, with its type, default and description. The main ones:
+
+- `--https-port` sets the HTTPS port the provider is served on, as in `--https-port 7100`. The port is written into the issuer in `Program.cs`, the launch profile and `requests.http`. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
+- `--user` seeds a development user into the Identity store at first run, as in `--user alice@example.com`. The value is both the user's email address and login, so it has to be an email address made of the characters Identity accepts in a user name: letters, digits and `-._@+`. Any other value stops the first run with Identity's error, such as `Email 'dev' is invalid.` for `--user dev`. The user gets the name John Doe, returned for the `profile` scope. Without `--user`, the store starts with no user.
+- `--password` sets the password of that user, as in `--password "Str0ng-Passw0rd"`. It has to meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol; a password that breaks them stops the first run with an error listing the rules it breaks. Without `--user` it has no effect.
 
 Without `--password`, the first run generates a password and prints it once on the console:
 
@@ -46,17 +48,13 @@ Seeded alice@example.com with a one-time generated password: ...
 Copy it now, then press Enter to start the server...
 ```
 
-On an interactive console the provider waits for Enter, so the password can be copied before the startup log scrolls it away. When input is redirected, as in a container or a CI job, it starts without waiting.
+On an interactive console the provider waits for Enter, so the password can be copied before the startup log scrolls it away. When input is redirected, as in a container or a CI job, it starts right away.
 
 The user is created only when no user with that email address exists yet. Identity keeps only a salted hash of the password, in `users.db`.
 
-`dotnet new abblix-oidc-server -h` prints the options of the version you have installed, with their types and defaults.
-
 ## Creating a project from an IDE
 
-After `dotnet new install Abblix.Templates`, Visual Studio lists the template in its New Project dialog as "Abblix OpenID Provider (ASP.NET Identity + EF Core)" and proposes `OpenIDProvider` as the project name. In JetBrains Rider it appears under Custom Templates in the New Solution dialog.
-
-The Visual Studio dialog offers none of the options above. A project created there gets a generated port and no user, so nobody can sign in until you register one. To set the options, create the project from the command line and open it in the IDE.
+Once the package is installed, the template is available in the IDE's new-project dialog as "Abblix OpenID Provider (ASP.NET Identity + EF Core)". Its `ide.host.json` marks the HTTPS port, the sample user and its password as visible, which is the setting Visual Studio reads to show an option in that dialog (per the `ide.host.json` schema).
 
 ## What the project contains
 
@@ -86,9 +84,9 @@ MyProvider/
 `appsettings.Development.json` declares two demo clients under `Oidc:Clients`, both with the secret `secret`, which is published with this template:
 
 - `test_client`, for the authorization code flow with PKCE. Its redirect addresses are on `https://localhost:5002`, so a client application you run there can sign users in through the provider.
-- `console_client`, for the client credentials grant only. It gets tokens addressed to the provider itself, so no API registered with the provider accepts them.
+- `console_client`, for the client credentials grant only. Its tokens are addressed to the provider itself: their audience is the issuer.
 
-`appsettings.json` declares no client, and `dotnet publish` does not copy `appsettings.Development.json`.
+`appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.
 
 ## Running the project
 
@@ -97,18 +95,18 @@ cd MyProvider
 dotnet run
 ```
 
-`dotnet run` uses the launch profile, so the provider runs in the Development environment at `https://localhost:<port>`, the port chosen at creation. The discovery document is at `https://localhost:<port>/.well-known/openid-configuration`. Trust the ASP.NET Core development certificate once with `dotnet dev-certs https --trust`, or browsers and clients refuse the address.
+`dotnet run` uses the launch profile, so the provider runs in the Development environment at `https://localhost:<port>`, the port chosen at creation. The discovery document is at `https://localhost:<port>/.well-known/openid-configuration`. Trust the ASP.NET Core development certificate once with `dotnet dev-certs https --trust`, so browsers and clients accept the address.
 
 The first run creates `users.db` and `oidc.db` in the project folder, generates the signing key and seeds the demo clients and the `--user` account. The signing key is encrypted with ASP.NET Core Data Protection, whose key ring is kept in the `dataprotection-keys` folder. Later runs reuse all of them.
 
 With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token. They need no client application.
 
-A client seeded into `oidc.db` stays there: a later edit to its entry in `Oidc:Clients` is not applied, and the provider logs a warning naming the client. Delete its row from the `Clients` table to seed it again.
+A client seeded into `oidc.db` keeps its stored row on later runs. When its entry in `Oidc:Clients` changes, the provider logs a warning naming the client; delete its row from the `Clients` table to seed it again from the configuration.
 
 ## Before deploying
 
 The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when `--user` is given without `--password`, the printed password. Each warning names the fix. Besides them:
 
-- Set `Issuer` in `Program.cs` to the provider's public address, or clients reject its tokens.
+- Set `Issuer` in `Program.cs` to the provider's public address, the one clients validate its tokens against.
 - Set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of `*`.
 - Delete the rows of `test_client` and `console_client` from `oidc.db`, or start from a database that never ran in Development.

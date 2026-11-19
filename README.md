@@ -39,7 +39,7 @@ Two templates for building an OpenID Connect Provider using ASP.NET Core in conj
 
 ## 📖 Template Pages
 
-Each template has a page with the `dotnet new` command, every option with its default and an example, how to create the project from Visual Studio or JetBrains Rider, what the created project contains and how to run it:
+Each template has a page with the `dotnet new` command and its main options, creating the project from an IDE, what the created project contains and how to run it:
 
 - `abblix-oidc-server`: [OpenID Provider on ASP.NET Core Identity](https://github.com/Abblix/Templates/blob/master/docs/abblix-oidc-server.md)
 - `abblix-oidc-server-gettingstarted`: [OpenID Provider for learning, in memory](https://github.com/Abblix/Templates/blob/master/docs/abblix-oidc-server-gettingstarted.md)

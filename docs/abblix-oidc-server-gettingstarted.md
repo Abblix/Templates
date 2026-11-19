@@ -8,7 +8,7 @@ The template lives in the [OpenIDProviderTemplate](../OpenIDProviderTemplate) fo
 
 - The [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0). The project targets .NET 11.
 
-Node.js is not needed: the pages load Bootstrap and jQuery from a CDN.
+The pages load Bootstrap and jQuery from a CDN, so the project builds with the .NET SDK alone.
 
 ## Creating a project from the command line
 
@@ -24,9 +24,9 @@ Then create a project:
 dotnet new abblix-oidc-server-gettingstarted -n MyProvider
 ```
 
-`-n` names the project and its folder. Without it, the project takes the name of the current folder, or `OpenIDProvider` in an IDE.
+`-n` names the project and its folder. Without it, the project takes the name of the current folder.
 
-A project with every option set:
+A project with the main options set:
 
 ```shell
 dotnet new abblix-oidc-server-gettingstarted -n MyProvider --https-port 7100 --user alice@example.com --password "Passw0rd!"
@@ -34,19 +34,15 @@ dotnet new abblix-oidc-server-gettingstarted -n MyProvider --https-port 7100 --u
 
 ## Options
 
-| Option | Default | Example | What it does |
-| --- | --- | --- | --- |
-| `--https-port` | a free port between 7000 and 7300 | `--https-port 7100` | The HTTPS port the provider is served on. It is also written into the issuer in `Program.cs`, into the launch profile and into `requests.http`. `0` picks a free port, as when the option is left out. |
-| `--user` | none, so the user store starts empty | `--user alice@example.com` | Adds a development user to the in-memory store, with the name "Demo User". The value is the user's email address and login. The login page asks for an email address, so a value such as `dev` is created but cannot be typed into the page. The value is written into `Program.cs` as a C# string, so it must not contain `"` or `\`. |
-| `--password` | `Passw0rd!` | `--password "Passw0rd!"` | The password of the `--user` account. It is written into `Program.cs` and compared in plain text. Like `--user`, it must not contain `"` or `\`. Ignored without `--user`. |
+`dotnet new abblix-oidc-server-gettingstarted -h` lists every option of the installed version, with its type, default and description. The main ones:
 
-`dotnet new abblix-oidc-server-gettingstarted -h` prints the options of the version you have installed, with their types and defaults.
+- `--https-port` sets the HTTPS port the provider is served on, as in `--https-port 7100`. The port is written into the issuer in `Program.cs`, the launch profile and `requests.http`. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
+- `--user` adds a development user named Demo User to the in-memory store, as in `--user alice@example.com`. The value is the login typed on the login page: an email address or any other text. Without `--user`, the store starts with no user.
+- `--password` sets the password of that user, as in `--password "Passw0rd!"`, which is also its default. It is written into `Program.cs` and compared in plain text. Without `--user` it has no effect.
 
 ## Creating a project from an IDE
 
-After `dotnet new install Abblix.Templates`, Visual Studio lists the template in its New Project dialog as "Abblix OpenID Provider - Getting Started (in-memory)" and proposes `OpenIDProvider` as the project name. In JetBrains Rider it appears under Custom Templates in the New Solution dialog.
-
-The Visual Studio dialog offers none of the options above. A project created there gets a generated port and no user. To set the options, create the project from the command line and open it in the IDE.
+Once the package is installed, the template is available in the IDE's new-project dialog as "Abblix OpenID Provider - Getting Started (in-memory)". Its `ide.host.json` marks the HTTPS port, the sample user and its password as visible, which is the setting Visual Studio reads to show an option in that dialog (per the `ide.host.json` schema).
 
 ## What the project contains
 
@@ -68,9 +64,7 @@ MyProvider/
 └── requests.http                  requests to send against the running provider
 ```
 
-`appsettings.Development.json` declares one demo client under `Oidc:Clients`: `console_client`, for the client credentials grant only, with the secret `secret`, which is published with this template. Its tokens are addressed to the provider itself, so no API registered with the provider accepts them. `appsettings.json` declares no client, and `dotnet publish` does not copy `appsettings.Development.json`.
-
-No client signs users in. To sign in as the `--user` account, add a client for the authorization code flow to `Oidc:Clients`, with the redirect address of your client application.
+`appsettings.Development.json` declares one demo client under `Oidc:Clients`: `console_client`, for the client credentials grant only, with the secret `secret`, which is published with this template. Its tokens are addressed to the provider itself: their audience is the issuer. `appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.
 
 ## Running the project
 
@@ -79,11 +73,11 @@ cd MyProvider
 dotnet run
 ```
 
-`dotnet run` uses the launch profile, so the provider runs in the Development environment at `https://localhost:<port>`, the port chosen at creation. The discovery document is at `https://localhost:<port>/.well-known/openid-configuration`. Trust the ASP.NET Core development certificate once with `dotnet dev-certs https --trust`, or browsers and clients refuse the address.
+`dotnet run` uses the launch profile, so the provider runs in the Development environment at `https://localhost:<port>`, the port chosen at creation. The discovery document is at `https://localhost:<port>/.well-known/openid-configuration`. Trust the ASP.NET Core development certificate once with `dotnet dev-certs https --trust`, so browsers and clients accept the address.
 
 With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token. They need no client application.
 
-Every start generates a new signing key, so tokens issued before a restart no longer validate.
+Every start generates a new signing key and publishes it in place of the previous one.
 
 ## Before going further
 
