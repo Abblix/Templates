@@ -6,7 +6,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 ### Upgrading a project created from 2.x
 
-- The short name changed. In 2.x, `dotnet new abblix-oidc-server` created this in-memory provider. That name now creates the production-shaped provider on ASP.NET Core Identity and EF Core, together with the aliases `oidc-server`, `oauth2-server` and `openidconnect`; this template is `abblix-oidc-server-gettingstarted`.
+- The short name changed. In 2.x, `dotnet new abblix-oidc-server` created this in-memory provider. That name now creates the production-shaped provider on ASP.NET Core Identity and EF Core, and so do the short names `oidc-server`, `oauth2-server` and `openidconnect`; this template is `abblix-oidc-server-gettingstarted`.
 - The project targets .NET 11 and references Abblix.Oidc.Server.Mvc 3.0.0, up from .NET 10 and 2.2.
 - The provider declares its issuer as one tenant: `AddOidcServices` adds a `TenantDefinition` to `options.Tenants`, and `LoginUri` and `SigningKeys` are set on it instead of on the options themselves.
 - The issuer is now fixed in `Program.cs` as `https://localhost:<port>`, the port the project is served on. In 2.x no issuer was set, so it came from the host each request arrived on. Before deploying, set `Issuer` to the provider's public address, or clients reject its tokens.
@@ -18,17 +18,18 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 ### Added
 
-- `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a free port between 7000 and 7300 is picked, so two projects created one after another no longer share a port. In 2.x every project used 5001.
+- `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created. In 2.x every project used 5001.
 - `--user` and `--password` seed a development sample user into the in-memory store; without `--user` the store starts empty. The password defaults to `Passw0rd!` and is stored and compared in plaintext.
 - `requests.http`, to send from Visual Studio, JetBrains Rider or VS Code against the running provider: the discovery document, the published keys, an access token from the client credentials grant and introspection of that token. Its address follows the project's port.
 - `console_client` in `appsettings.Development.json`, for the client credentials grant only, with the secret `secret` published with the template. Because that secret is public, the client gets no token for a registered API.
 - Token introspection (RFC 7662) is switched on with `AddIntrospection()` and advertised in the discovery document.
 - `dotnet publish` no longer copies `appsettings.Development.json`, which holds the demo client's published secret.
 - Build warnings (CS1030) mark what to replace before production: the in-memory user store, the plaintext password check, the signing key generated at every startup and the in-memory distributed cache. Each warning names the fix and links the matching guide.
-- The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name.
+- The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `OpenIDProvider` as the project name. `ide.host.json` marks `--https-port`, `--user` and `--password` as options for that dialog to show.
 
 ### Changed
 
+- The login page asks for an email or login in a plain text field, so a `--user` value that is not an email address signs in too. 2.x took only an email address there.
 - The template's display name, shown by `dotnet new list` and in the Visual Studio dialog, is now "Abblix OpenID Provider - Getting Started (in-memory)", where 2.x showed "ASP.NET Core OpenID Provider".
 - The browser tab shows the Abblix icon, and the footer links to the Abblix OIDC Server repository on GitHub instead of the home page.
 - The README is rewritten for 3.0. It also asks deployers to set `AllowedHosts` to the issuer's host name instead of `*`, since the provider builds its endpoint addresses from the host a request arrives with.

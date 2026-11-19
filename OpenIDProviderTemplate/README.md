@@ -97,6 +97,8 @@ You create a new project from this template by its short name, `abblix-oidc-serv
 dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider
 ```
 
+`--user` adds a development user to the in-memory store, signing in with the login you give: an email address or any other text on one line. `--password` sets its password, `Passw0rd!` by default. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
+
 The short name `abblix-oidc-server` belongs to the other OpenID Provider template in the same package, which keeps users in ASP.NET Core Identity and stores the signing key and client registrations in SQLite. Start a real project from that one.
 
 ## 📂 Project Structure

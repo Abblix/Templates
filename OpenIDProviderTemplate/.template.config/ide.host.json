@@ -1,4 +1,21 @@
 {
   "$schema": "http://json.schemastore.org/vs-2017.3.host",
-  "icon": "icon.png"
+  "icon": "icon.png",
+  "symbolInfo": [
+    {
+      "id": "HttpsPort",
+      "name": { "text": "HTTPS port" },
+      "isVisible": true
+    },
+    {
+      "id": "user",
+      "name": { "text": "Sample user login" },
+      "isVisible": true
+    },
+    {
+      "id": "password",
+      "name": { "text": "Sample user password" },
+      "isVisible": true
+    }
+  ]
 }

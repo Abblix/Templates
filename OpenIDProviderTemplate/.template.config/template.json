@@ -24,7 +24,7 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "description": "HTTPS port the provider is served on and names in its issuer. If omitted, a free port between 7000 and 7300 is picked (0 picks one)."
+            "description": "HTTPS port the provider is served on and names in its issuer. When omitted or 0, a port free on this machine is picked at random between 7000 and 7300 as the project is created."
         },
         "HttpsPortGenerated": {
             "type": "generated",
@@ -48,15 +48,25 @@
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "",
-            "replaces": "SAMPLE_USER_EMAIL",
             "description": "Email/login of a dev sample user to pre-seed. If omitted, no sample user is created."
         },
         "password": {
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "Passw0rd!",
-            "replaces": "SAMPLE_USER_PASSWORD",
             "description": "Password for the --user sample account. Dev-only: stored and compared in plaintext. Ignored when --user is omitted."
+        },
+        "userInCSharp": {
+            "type": "derived",
+            "valueSource": "user",
+            "valueTransform": "cSharpString",
+            "replaces": "SAMPLE_USER_EMAIL"
+        },
+        "passwordInCSharp": {
+            "type": "derived",
+            "valueSource": "password",
+            "valueTransform": "cSharpString",
+            "replaces": "SAMPLE_USER_PASSWORD"
         },
         "HasSampleUser": {
             "type": "computed",
@@ -69,6 +79,47 @@
             "parameters": {
                 "defaultFormat": "D"
             }
+        }
+    },
+    "forms": {
+        "cSharpString": {
+            "identifier": "chain",
+            "steps": [ "escapeBackslash", "escapeQuote", "escapeCarriageReturn", "escapeLineFeed", "escapeNextLine", "escapeLineSeparator", "escapeParagraphSeparator" ]
+        },
+        "escapeBackslash": {
+            "identifier": "replace",
+            "pattern": "\\\\",
+            "replacement": "\\\\"
+        },
+        "escapeQuote": {
+            "identifier": "replace",
+            "pattern": "\"",
+            "replacement": "\\\""
+        },
+        "escapeCarriageReturn": {
+            "identifier": "replace",
+            "pattern": "\\r",
+            "replacement": "\\r"
+        },
+        "escapeLineFeed": {
+            "identifier": "replace",
+            "pattern": "\\n",
+            "replacement": "\\n"
+        },
+        "escapeNextLine": {
+            "identifier": "replace",
+            "pattern": "\\u0085",
+            "replacement": "\\u0085"
+        },
+        "escapeLineSeparator": {
+            "identifier": "replace",
+            "pattern": "\\u2028",
+            "replacement": "\\u2028"
+        },
+        "escapeParagraphSeparator": {
+            "identifier": "replace",
+            "pattern": "\\u2029",
+            "replacement": "\\u2029"
         }
     }
 }
