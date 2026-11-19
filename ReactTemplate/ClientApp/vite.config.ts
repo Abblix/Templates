@@ -16,13 +16,11 @@ const keyPath = path.resolve(certFolder, `localhost.key`);
 // succeeding and on the PEM files existing - neither of which holds on a build agent, where the export
 // fails and takes the production build down with it. The error names vite.config.ts, so it reads as a
 // broken config rather than a dev-only step running in the wrong mode.
+// It is exported on every start: the proxy trusts exactly this file, so a copy left from a certificate
+// since renewed would make the proxy refuse the host.
 function devServerHttps() {
-  if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
-    console.log(`Certificate or key file not found. Generating new files (${certPath}, ${keyPath})...`);
-    execSync(`dotnet dev-certs https --export-path ${certPath} --format Pem --no-password`);
-  } else {
-    console.log('Certificate and key files already exist. Skipping generation.');
-  }
+  console.log(`Exporting the development certificate (${certPath}, ${keyPath})...`);
+  execSync(`dotnet dev-certs https --export-path "${certPath}" --format Pem --no-password`);
 
   return {
     cert: fs.readFileSync(certPath, 'utf-8'),

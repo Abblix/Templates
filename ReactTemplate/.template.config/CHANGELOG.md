@@ -14,13 +14,14 @@ What changed in the project that the ReactTemplate creates, version by version. 
 ### Added
 
 - `--https-port` sets the HTTPS port the host is served on, and `--spa-proxy-port` the port of the Vite dev server the host starts during development. When either is omitted or 0, a port free on the machine is picked at random as the project is created, between 7000 and 7300 for the host and between 5173 and 5273 for Vite. In 2.x every project used 5000 and 3000.
-- The Vite dev server forwards paths under `/api` to the host: `server.proxy` in `vite.config.ts` targets the host's HTTPS address and trusts the exported development certificate. In 2.x such a call stayed on the Vite dev server, which answered it with `index.html`, or with 404 when the request asked only for JSON. A project created from 2.x gets the same by adding the `proxy` entry to `server` in its `vite.config.ts`.
+- The Vite dev server forwards paths under `/api` to the host: `server.proxy` in `vite.config.ts` targets the host's HTTPS address and trusts the exported development certificate. In 2.x such a call stayed on the Vite dev server, which answered it with `index.html`, or with 404 when the request asked only for JSON. A project created from 2.x gets the same by adding `proxy: { '/api': { target: 'https://localhost:<port>', ca: fs.readFileSync(certPath, 'utf-8') } }` to `server` in its `vite.config.ts`, with the host's port.
 - `Program.cs` maps `/api/greeting`, and `App.tsx` fetches it and shows the message under the heading, so a new project shows the call reaching the host from the dev server and from a published build.
 - The Visual Studio New Project dialog shows the template with the Abblix icon and proposes `ReactApp` as the project name. `ide.host.json` marks `--https-port` and `--spa-proxy-port` as options for that dialog to show.
 
 ### Changed
 
 - The browser tab shows the Abblix icon (`favicon.svg`) instead of the Vite one.
+- The Vite dev server exports the development certificate on every start. 2.x exported it only when the PEM files were missing, so after the certificate was renewed the dev server kept serving the old copy.
 - The READMEs describe oxlint instead of ESLint, and give the application's address as `https://localhost:<port>` with the port chosen at creation, where 2.x gave `http://localhost:5000`. `@types/node` moves from 24 to 26.
 
 ### Fixed

@@ -77,7 +77,7 @@ dotnet run
 
 `dotnet run` builds the host, installing the npm packages on the first run, and starts it at `https://localhost:<port>`, the port chosen at creation. The SPA proxy then starts the Vite dev server with `npm run dev`, and the browser opens on the host's address, which redirects it to the Vite dev server at `https://localhost:<spa-proxy-port>`. There, changes under `ClientApp/src` reload without restarting the host.
 
-The Vite dev server serves HTTPS with the ASP.NET Core development certificate. On its first start it exports the certificate with `dotnet dev-certs` into `%APPDATA%\ASP.NET\https` on Windows or `~/.aspnet/https` elsewhere. Trust the certificate once with `dotnet dev-certs https --trust`, so the browser accepts both addresses.
+The Vite dev server serves HTTPS with the ASP.NET Core development certificate. On every start it exports the certificate with `dotnet dev-certs` into `%APPDATA%\ASP.NET\https` on Windows or `~/.aspnet/https` elsewhere. Trust the certificate once with `dotnet dev-certs https --trust`, so the browser accepts both addresses.
 
 The application calls the host by relative paths: `App.tsx` fetches `/api/greeting`, an endpoint in `Program.cs`, and shows its message. When the page is loaded from the Vite address, the call goes to the dev server, and `server.proxy` in `ClientApp/vite.config.ts` forwards every path under `/api` to the host at `https://localhost:<port>`. The proxy checks the host's certificate against the exported development certificate, the one the host serves. A published host answers the same paths itself. A new endpoint under `/api` needs no change to the proxy; another prefix is added to `server.proxy`.
 
