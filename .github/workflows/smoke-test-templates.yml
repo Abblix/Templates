@@ -220,7 +220,7 @@ jobs:
         # --user and --password carry a quote, a backslash and braces, which land in C# literals in
         # Program.cs: a broken escaping form leaves a literal the build refuses.
         env:
-          # For the reason given in the step above: console_client exists only in Development.
+          # For the reason given in the step above: console_client and test_client exist only in Development.
           ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
@@ -252,6 +252,25 @@ jobs:
             curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
               -d client_id=console_client -d client_secret=secret -o introspection-gs.json && introspection=1
           fi
+          # The sign-in that requests.http walks through in a browser, as test_client: the authorization request
+          # answers with the login page, the --user signs in there, the provider sends the browser on to the
+          # redirect URI with a code, and the code is exchanged for tokens with the verifier of code_challenge.
+          authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid&state=smoke&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
+          signin=0
+          if login=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$authorize") &&
+            [ "${login%%\?*}" = "$url/Auth/Login" ] &&
+            back=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$url/Auth/Login" \
+              --data-urlencode 'email=a"b\{c}' --data-urlencode 'password=p"\q' -d "requestUri=${login#*request_uri=}") &&
+            callback=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$back") &&
+            authorization_code=$(python3 -I -c 'import sys, urllib.parse as p
+          u = p.urlsplit(sys.argv[1]); q = p.parse_qs(u.query)
+          assert p.urlunsplit(u._replace(query="")) == "http://127.0.0.1/callback" and q["state"] == ["smoke"], u
+          print(q["code"][0])' "$callback") &&
+            curl -skf "$url/connect/token" -d grant_type=authorization_code --data-urlencode "code=$authorization_code" \
+              -d redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk \
+              -d client_id=test_client -d client_secret=secret -o code-token-gs.json; then
+            signin=1
+          fi
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
@@ -267,6 +286,10 @@ jobs:
           [ "$introspection" = 1 ] || { echo "::error::getting-started introspection endpoint did not answer for the token just issued"; exit 1; }
           jq -e '.active == true and .client_id == "console_client"' introspection-gs.json > /dev/null ||
             { echo "::error::getting-started introspection does not report the token just issued as active for console_client"; exit 1; }
+          [ "$signin" = 1 ] ||
+            { echo "::error::getting-started sign-in as test_client did not reach tokens: login page '${login:-}', after sign-in '${back:-}', callback '${callback:-}'"; exit 1; }
+          jq -e '(.id_token | type == "string") and (.access_token | type == "string") and .token_type == "Bearer"' code-token-gs.json > /dev/null ||
+            { echo "::error::getting-started token endpoint did not answer the code of test_client with an id_token and a Bearer access_token"; exit 1; }
           # Again in Production, where appsettings.json must declare no client, as in the step above.
           ASPNETCORE_ENVIRONMENT=Production dotnet ./SmokeOidcGs.dll --urls "$url" &
           pid=$!
@@ -277,11 +300,16 @@ jobs:
           done
           unseeded=$(curl -sk -o unseeded-gs.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
             -d client_id=console_client -d client_secret=secret) || unseeded=none
+          unknown=$(curl -sk -o unknown-gs.json -w '%{http_code}' "$authorize") || unknown=none
           kill "$pid" 2>/dev/null || true
           wait "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::getting-started template did not start in Production: discovery did not respond"; exit 1; }
           if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded-gs.json > /dev/null; then
             echo "::error::getting-started template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
+            exit 1
+          fi
+          if [ "$unknown" != 400 ] || ! jq -e '.error == "unauthorized_client"' unknown-gs.json > /dev/null; then
+            echo "::error::getting-started template declares a demo client outside appsettings.Development.json: in Production the authorization request of test_client was not refused with 400 unauthorized_client"
             exit 1
           fi
           echo "OIDC getting-started template OK"
