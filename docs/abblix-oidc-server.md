@@ -1,6 +1,6 @@
 # abblix-oidc-server
 
-`abblix-oidc-server` creates an OpenID Provider on ASP.NET Core MVC and Abblix OIDC Server 3.0. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and client registrations and the signing key are stored in SQLite as well, so a restart keeps them. Start a real project from this template. For a smaller provider that keeps everything in memory and is meant for learning, see [abblix-oidc-server-gettingstarted](abblix-oidc-server-gettingstarted.md).
+`abblix-oidc-server` creates an OpenID Provider on ASP.NET Core and Abblix OIDC Server 3.0, as a Minimal API host or, with `--host mvc`, an MVC host. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and client registrations and the signing key are stored in SQLite as well, so a restart keeps them. Start a real project from this template. For a smaller provider that keeps everything in memory and is meant for learning, see [abblix-oidc-server-gettingstarted](abblix-oidc-server-gettingstarted.md).
 
 The template lives in the [OpenIDProviderIdentityTemplate](../OpenIDProviderIdentityTemplate) folder. What changed between versions is in its [changelog](../OpenIDProviderIdentityTemplate/.template.config/CHANGELOG.md).
 
@@ -31,15 +31,22 @@ A project with the main options set:
 dotnet new abblix-oidc-server -n MyProvider --https-port 7100 --user alice@example.com --password "Str0ng-Passw0rd"
 ```
 
+The same provider as an MVC host:
+
+```shell
+dotnet new abblix-oidc-server -n MyProvider --host mvc
+```
+
 The short names `oidc-server`, `oauth2-server` and `openidconnect` create the same project.
 
 ## Options
 
 `dotnet new abblix-oidc-server -h` lists every option of the installed version, with its type, default and description. The main ones:
 
+- `--host` picks how the host serves the OpenID endpoints and its own pages. `minimal`, the default, maps them as Minimal API endpoints and references Abblix.Oidc.Server.MinimalApi; the login page and the other pages are rendered by `MinimalApiPages.cs`. `mvc` serves the endpoints as MVC controllers from Abblix.Oidc.Server.Mvc, and the pages as controllers with Razor views. Everything else is the same in both: the settings, the clients, Identity, the stores, the demo client and the sign-out pages. Both login pages check their antiforgery token in the handler, so a form submitted from another site is refused and an expired form is shown again.
 - `--https-port` sets the HTTPS port the provider is served on, as in `--https-port 7100`. The port is written into the issuer in `Program.cs`, the launch profile and `requests.http`. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
-- `--user` seeds a development user into the Identity store at first run, as in `--user alice@example.com`. The value is both the user's email address and login, so it has to be an email address made of the characters Identity accepts in a user name: Latin letters, digits and `-._@+`. Any other value stops the first run with Identity's error, such as `Email 'dev' is invalid.` for `--user dev`. The user gets the name John Doe, returned for the `profile` scope. Without `--user`, the store starts with no user.
-- `--password` sets the password of that user, as in `--password "Str0ng-Passw0rd"`. It has to meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol; a password that breaks them stops the first run with an error listing the rules it breaks. Without `--user` it has no effect.
+- `--user` seeds a development user into the Identity store at first run, as in `--user alice@example.com`, and `demo@example.com` when it is omitted. The value is both the user's email address and login, so it has to be an email address made of the characters Identity accepts in a user name: Latin letters, digits and `-._@+`. Any other value stops the first run with Identity's error, such as `Email 'dev' is invalid.` for `--user dev`. The user gets the name John Doe, returned for the `profile` scope. With `--user ""`, the store starts with no user.
+- `--password` sets the password of that user, as in `--password "Str0ng-Passw0rd"`. It has to meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol; a password that breaks them stops the first run with an error listing the rules it breaks. With `--user ""` it has no effect.
 
 Without `--password`, the first run generates a password and prints it once on the console:
 
@@ -54,27 +61,30 @@ The user is created only when no user with that email address exists yet. Identi
 
 ## Creating a project from an IDE
 
-Once the package is installed, the template is available in the IDE's new-project dialog as "Abblix OpenID Provider (ASP.NET Identity + EF Core)". Its `ide.host.json` marks the HTTPS port, the sample user and its password as visible, which is the setting Visual Studio reads to show an option in that dialog (per the `ide.host.json` schema).
+Once the package is installed, the template is available in the IDE's new-project dialog as "Abblix OpenID Provider (ASP.NET Identity + EF Core)". Its `ide.host.json` marks the host style, the HTTPS port, the sample user and its password as visible, which is the setting Visual Studio reads to show an option in that dialog (per the `ide.host.json` schema).
 
 ## What the project contains
 
 ```
 MyProvider/
 ├── ClientAssets/                  npm project that bundles Bootstrap with Vite
-├── Controllers/
-│   ├── AuthController.cs          the login page; checks the password with Identity
-│   └── HomeController.cs
-├── Models/
+├── Controllers/                   MVC only: AuthController.cs, the login page, and HomeController.cs
+├── Models/                        MVC only
 ├── OidcStore/
 │   ├── DatabaseKeysProvider.cs    signing keys stored in SQLite
 │   ├── DurableClientStore.cs      client registrations stored in SQLite
 │   └── OidcStoreDbContext.cs
 ├── Properties/launchSettings.json the https launch profile, on the chosen port
-├── Views/
+├── Views/                         MVC only
 ├── wwwroot/
+├── .gitignore                     keeps the databases, the key ring and the build output out of a commit
 ├── AppDbContext.cs                the Identity tables
+├── DemoClient.cs                  the demo client's pages, served in Development
+├── EndSessionPages.cs             the sign-out confirmation and signed-out pages
 ├── IdentityUserInfoProvider.cs    the user's claims for ID tokens and UserInfo
+├── MinimalApiPages.cs             Minimal API only: the home, error and login pages
 ├── MyProvider.csproj
+├── Pages.cs                       the frame of the pages rendered as plain HTML
 ├── Program.cs                     the issuer, Identity, the stores and the seeding
 ├── appsettings.json               connection strings, password hashing work factor
 ├── appsettings.Development.json   the demo clients
@@ -83,7 +93,7 @@ MyProvider/
 
 `appsettings.Development.json` declares two demo clients under `Oidc:Clients`, both with the secret `secret`, which is published with this template:
 
-- `test_client`, for the authorization code flow with PKCE. Its redirect addresses are on `https://localhost:5002`, so a client application you run there can sign users in through the provider.
+- `test_client`, for the authorization code flow with PKCE and refresh tokens. Its first redirect address is the demo client's page in this project, `https://localhost:<port>/demo/callback`; the second is on `https://localhost:5002`, for a client application of your own run there.
 - `console_client`, for the client credentials grant only. Its tokens are addressed to the provider itself: their audience is the issuer.
 
 `appsettings.json` declares no client, and `dotnet publish` leaves `appsettings.Development.json` out of the published app.
@@ -99,7 +109,9 @@ dotnet run
 
 The first run creates `users.db` and `oidc.db` in the project folder, generates the signing key and seeds the demo clients and the `--user` account. The signing key is encrypted with ASP.NET Core Data Protection, whose key ring is kept in the `dataprotection-keys` folder. Later runs reuse all of them.
 
-With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token. They need no client application.
+To sign in, open `https://localhost:<port>/` in a browser and choose "Sign in with the demo client". The provider shows its login page; sign in with the `--user` email and its password. The browser lands on the demo client's page, which shows the authorization code, its PKCE verifier and the token request that redeems them, and a button that signs out through the end-session endpoint: the provider asks to confirm, then sends the browser back to the demo client.
+
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code with the REST Client extension and send its requests in turn: the discovery document, the published keys, an access token for `console_client` and the introspection of that token, then the exchange of a code from the demo client, the user's claims and a refresh.
 
 A client seeded into `oidc.db` keeps its stored row on later runs. When its entry in `Oidc:Clients` changes, the provider logs a warning naming the client; delete its row from the `Clients` table to seed it again from the configuration.
 
