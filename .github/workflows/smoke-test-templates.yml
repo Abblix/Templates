@@ -19,6 +19,7 @@ on:
       - 'ReactTemplate/**'
       - 'Abblix.Templates.csproj'
       - '.github/workflows/smoke-test-templates.yml'
+      - '.github/scripts/drive-provider.py'
   push:
     branches: [master]
     paths:
@@ -31,6 +32,7 @@ on:
       - 'ReactTemplate/**'
       - 'Abblix.Templates.csproj'
       - '.github/workflows/smoke-test-templates.yml'
+      - '.github/scripts/drive-provider.py'
 
 permissions:
   contents: read
@@ -240,6 +242,10 @@ jobs:
           url="https://localhost:5443"
           login='a"b\{c}'
           password='p"\q'
+          # The same login with no --password: it then lands in the line that prints the generated password, so
+          # a form that escapes it for a C# literal but not for that line leaves source the build refuses
+          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGsGenerated -o "$RUNNER_TEMP/SmokeOidcGsGenerated" --user "$login"
+          dotnet build "$RUNNER_TEMP/SmokeOidcGsGenerated" -c Release
           for host in minimal mvc; do
             name="SmokeOidcGs_$host"
             work="$RUNNER_TEMP/$name"

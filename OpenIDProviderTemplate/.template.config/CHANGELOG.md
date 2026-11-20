@@ -35,7 +35,6 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 - The login form checks its antiforgery token in the handler. A form submitted from another site is refused, so it can no longer sign the browser in with the other site's account, and a form opened in another tab before a sign-in is shown again rather than refused with a bare 400.
 - A sign-in on the login page opened on its own, with no authorization request to resume, goes to the home page. In 2.x it ended on a JSON error from the authorization endpoint.
-- A login form posted without an email or a password shows "Invalid username or password" instead of failing with 500.
 
 ### Changed
 

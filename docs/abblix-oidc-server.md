@@ -45,7 +45,7 @@ The short names `oidc-server`, `oauth2-server` and `openidconnect` create the sa
 
 - `--host` picks how the host serves the OpenID endpoints and its own pages. `minimal`, the default, maps them as Minimal API endpoints and references Abblix.Oidc.Server.MinimalApi; the login page and the other pages are rendered by `MinimalApiPages.cs`. `mvc` serves the endpoints as MVC controllers from Abblix.Oidc.Server.Mvc, and the pages as controllers with Razor views. Everything else is the same in both: the settings, the clients, Identity, the stores, the demo client and the sign-out pages. Both login pages check their antiforgery token in the handler, so a form submitted from another site is refused and an expired form is shown again.
 - `--https-port` sets the HTTPS port the provider is served on, as in `--https-port 7100`. The port is written into the issuer in `Program.cs`, the launch profile and `requests.http`. When the option is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created.
-- `--user` seeds a development user into the Identity store at first run, as in `--user alice@example.com`, and `demo@example.com` when it is omitted. The value is both the user's email address and login, so it has to be an email address made of the characters Identity accepts in a user name: Latin letters, digits and `-._@+`. Any other value stops the first run with Identity's error, such as `Email 'dev' is invalid.` for `--user dev`. The user gets the name John Doe, returned for the `profile` scope. With `--user ""`, the store starts with no user.
+- `--user` seeds a development user into the Identity store at the first run in Development, as in `--user alice@example.com`, and `demo@example.com` when it is omitted. The value is both the user's email address and login, so it has to be an email address made of the characters Identity accepts in a user name: Latin letters, digits and `-._@+`. Any other value stops the first run with Identity's error, such as `Email 'dev' is invalid.` for `--user dev`. The user gets the name John Doe, returned for the `profile` scope. With `--user ""`, the store starts with no user.
 - `--password` sets the password of that user, as in `--password "Str0ng-Passw0rd"`. It has to meet Identity's default password rules: at least six characters, with an uppercase letter, a lowercase letter, a digit and a symbol; a password that breaks them stops the first run with an error listing the rules it breaks. With `--user ""` it has no effect.
 
 Without `--password`, the first run generates a password and prints it once on the console:
@@ -57,7 +57,7 @@ Copy it now, then press Enter to start the server...
 
 On an interactive console the provider waits for Enter, so the password can be copied before the startup log scrolls it away. When input is redirected, as in a container or a CI job, it starts right away.
 
-The user is created only when no user with that email address exists yet. Identity keeps only a salted hash of the password, in `users.db`.
+The user is created only in Development, and only when no user with that email address exists yet, so a provider started in any other environment never holds it. Identity keeps only a salted hash of the password, in `users.db`.
 
 ## Creating a project from an IDE
 

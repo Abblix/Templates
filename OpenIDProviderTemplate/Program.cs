@@ -36,7 +36,7 @@ var samplePassword = "SAMPLE_USER_PASSWORD";
 #else
 // The store lives in memory, so the password is generated again at every start and shown once on the console
 var samplePassword = TestUserStorage.GeneratePassword();
-Console.WriteLine($"Sign in as SAMPLE_USER_EMAIL with the password generated for this run: {samplePassword}");
+Console.WriteLine("Sign in as " + "SAMPLE_USER_EMAIL" + " with the password generated for this run: " + samplePassword);
 #endif
 #endif
 var userInfoStorage = new TestUserStorage(

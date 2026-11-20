@@ -179,7 +179,9 @@ using (var scope = app.Services.CreateScope())
 
     var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 #if (HasSampleUser)
-    if (await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
+    // A development account with a login known from the template: a host started in any other environment
+    // seeds no user, so a deployed provider never holds it
+    if (app.Environment.IsDevelopment() && await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
     {
         var user = new IdentityUser
         {

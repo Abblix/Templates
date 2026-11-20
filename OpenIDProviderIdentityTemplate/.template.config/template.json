@@ -73,13 +73,13 @@
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "demo@example.com",
-            "description": "Email address of the dev sample user seeded into the Identity store on the first run; it is also the login, so it takes the characters Identity accepts in a user name: Latin letters, digits and -._@+. Any other value stops the first run with Identity's error. Pass an empty value for no user."
+            "description": "Email address of the dev sample user seeded into the Identity store on the first run in Development; it is also the login, so it takes the characters Identity accepts in a user name: Latin letters, digits and -._@+. Any other value stops the first run with Identity's error. Pass an empty value for no user."
         },
         "password": {
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "",
-            "description": "Password for the --user sample account. If omitted, a random one is generated and printed once on first run. Ignored when --user is omitted."
+            "description": "Password for the --user sample account. If omitted, a random one is generated and printed once on the first run in Development. Ignored when --user is empty."
         },
         "userInCSharp": {
             "type": "derived",
