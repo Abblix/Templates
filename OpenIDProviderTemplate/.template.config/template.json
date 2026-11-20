@@ -75,6 +75,12 @@
             "defaultValue": "",
             "description": "Password of the --user sample account. If omitted, a random one is generated at every start and printed on the console. Dev-only: stored and compared in plaintext."
         },
+        "userInText": {
+            "type": "derived",
+            "valueSource": "user",
+            "valueTransform": "identity",
+            "replaces": "SAMPLE_USER_LOGIN"
+        },
         "userInCSharp": {
             "type": "derived",
             "valueSource": "user",

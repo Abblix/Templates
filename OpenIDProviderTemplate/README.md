@@ -97,7 +97,7 @@ You create a new project from this template by its short name, `abblix-oidc-serv
 dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider
 ```
 
-`--host` picks the host style: `minimal`, the default, maps the OpenID endpoints and the host's pages as Minimal API endpoints; `mvc` serves them as MVC controllers and Razor views. Both share the settings, the clients, the user store, the demo client and the sign-out pages. `--user` sets the login of the development user in the in-memory store, `demo@example.com` by default, and `--password` its password; without `--password`, one is generated at every start and printed on the console. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
+`--host` picks the host style: `minimal`, the default, maps the OpenID endpoints and the host's pages as Minimal API endpoints; `mvc` serves them as MVC controllers and Razor views. Both share the settings, the clients, the user store, the demo client and the sign-out pages. `--user` sets the login of the development user the in-memory store holds in Development, `demo@example.com` by default, and `--password` its password; without `--password`, one is generated at every start and printed on the console. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
 
 The short name `abblix-oidc-server` belongs to the other OpenID Provider template in the same package, which keeps users in ASP.NET Core Identity and stores the signing key and client registrations in SQLite. Start a real project from that one.
 
@@ -167,7 +167,13 @@ dotnet run
 
 You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
 
-With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port. To sign in, open `https://localhost:5001/` and choose "Sign in with the demo client": the login page takes `demo@example.com` and the password the console printed. The demo client's page then shows the code with its PKCE verifier and a sign-out button, and `requests.http` exchanges the code for tokens, reads the user's claims and refreshes the tokens.
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port.
+
+<!--#if (HasSampleUser) -->
+To sign in, open `https://localhost:5001/` and choose "Sign in with the demo client": the login page takes `SAMPLE_USER_LOGIN` and its password, the one given to `dotnet new` with `--password` or, without it, the one the console printed at startup. The demo client's page then shows the code with its PKCE verifier and a sign-out button, and `requests.http` exchanges the code for tokens, reads the user's claims and refreshes the tokens.
+<!--#else -->
+This project was created with no sample user (`--user ""`), so nobody can sign in yet: add a `UserInfo` to the `TestUserStorage` in `Program.cs`, then open `https://localhost:5001/` and choose "Sign in with the demo client".
+<!--#endif -->
 
 ## 🎨 Customization
 

@@ -30,26 +30,27 @@ builder.Services.AddHttpContextAccessor();
 
 #warning Dev-only: TestUserStorage is an in-memory demo store; back IUserInfoProvider with a real user database for production. https://docs.abblix.com/docs/aspnet-identity-integration
 // Add the TestUserStorage as a singleton service in the DI container.
+var sampleUsers = new List<UserInfo>();
 #if (HasSampleUser)
+// Dev-only sample account seeded from --user / --password so you can sign in immediately. Its login is known from
+// the template, so a host started in any other environment holds no user. Scaffold with --user "" for none at all.
+if (builder.Environment.IsDevelopment())
+{
 #if (HasSamplePassword)
-var samplePassword = "SAMPLE_USER_PASSWORD";
+    var samplePassword = "SAMPLE_USER_PASSWORD";
 #else
-// The store lives in memory, so the password is generated again at every start and shown once on the console
-var samplePassword = TestUserStorage.GeneratePassword();
-Console.WriteLine("Sign in as " + "SAMPLE_USER_EMAIL" + " with the password generated for this run: " + samplePassword);
+    // The store lives in memory, so the password is generated again at every start and shown once on the console
+    var samplePassword = TestUserStorage.GeneratePassword();
+    Console.WriteLine("Sign in as " + "SAMPLE_USER_EMAIL" + " with the password generated for this run: " + samplePassword);
 #endif
-#endif
-var userInfoStorage = new TestUserStorage(
-#if (HasSampleUser)
-    // Dev-only sample account seeded from --user / --password so you can sign in
-    // immediately. Scaffold with --user "" to start with an empty store.
-    new UserInfo(
+    sampleUsers.Add(new UserInfo(
         Subject: "SAMPLE_USER_SUBJECT",
         Name: "Demo User",
         Email: "SAMPLE_USER_EMAIL",
-        Password: samplePassword)
+        Password: samplePassword));
+}
 #endif
-);
+var userInfoStorage = new TestUserStorage([.. sampleUsers]);
 builder.Services.AddSingleton(userInfoStorage);
 
 // Use AddAlias to register TestUserStorage also as an implementation of IUserInfoProvider.

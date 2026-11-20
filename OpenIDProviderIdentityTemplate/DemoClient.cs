@@ -118,7 +118,7 @@ public static class DemoClient
 
         app.MapGet(postLogoutRedirectUri.AbsolutePath, () =>
             Html(Pages.Card("Signed out", $"""
-                <p>The provider ended the session and sent the browser back to {ClientId}.</p>
+                <p>This is where the provider sends the browser back to {ClientId} after ending the session.</p>
                 <a class="btn btn-primary" href="{StartPath}">Sign in again</a>
                 """)));
     }
