@@ -1,6 +1,6 @@
 # Abblix Templates
 
-Three project templates for the Visual Studio New Project dialog. Two of them create an OpenID Provider on ASP.NET Core and Abblix OIDC Server; the third creates an ASP.NET Core host with a React application. Search the dialog for "Abblix" or for the template's name.
+Three project templates for the Visual Studio New Project dialog. Two of them create an OpenID Provider on ASP.NET Core and Abblix OIDC Server; the third creates an ASP.NET Core host with a React application. Search the dialog for the template's name.
 
 This extension carries the same template package that `dotnet new install Abblix.Templates` installs from nuget.org, at the same version, so a project created here matches one created on the command line.
 

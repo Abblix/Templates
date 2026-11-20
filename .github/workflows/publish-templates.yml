@@ -8,9 +8,10 @@ name: Publish templates to NuGet and the Visual Studio Marketplace
 # re-run idempotent rather than failing. The Marketplace replaces an extension of the same version,
 # so a re-run publishes the same extension again.
 #
-# One package for both: the pack job builds the .nupkg once and records its SHA-256, and each
-# publishing job downloads it and refuses a file with any other digest, so NuGet.org and the
-# extension never carry different templates.
+# One package for both: the pack job builds the .nupkg once and records its SHA-256, and the
+# NuGet.org job and the extension build download it and refuse a file with any other digest, so
+# within a run NuGet.org and the extension carry the same templates. A dry run packs the package
+# and builds the extension without an approval.
 
 on:
   workflow_dispatch:
@@ -87,15 +88,15 @@ jobs:
           echo "Package digest: $sum"
         timeout-minutes: 3
 
-      # The publishing jobs read the package from here; the digest above is what they check it
-      # against. One day is the shortest retention, enough for a re-run of a failed publishing job.
+      # The extension and NuGet.org jobs read the package from here; the digest above is what they
+      # check it against. Three days leave room for an approval or a re-run after a day's wait.
       - name: Hand the package to the publishing jobs
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: templates-package
           path: nupkg/*.nupkg
           if-no-files-found: error
-          retention-days: 1
+          retention-days: 3
         timeout-minutes: 3
 
   # NuGet.org trusted publishing: the job proves its identity with GitHub's OIDC token and receives a
@@ -104,7 +105,8 @@ jobs:
   # workflow or a run without the approval cannot obtain a key.
   nuget:
     name: Publish Abblix.Templates to NuGet.org
-    needs: pack
+    # Waits for the extension build too, so a package the extension cannot carry is never pushed.
+    needs: [pack, extension]
     if: ${{ !inputs.dry_run }}
     runs-on: ubuntu-latest
     # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
@@ -222,25 +224,23 @@ jobs:
           fi
         timeout-minutes: 3
 
-  # The Visual Studio extension carrying the same package. Visual Studio Marketplace trusted
-  # publishing: the job exchanges GitHub's OIDC token for a Marketplace credential valid for 15
-  # minutes, so no long-lived token is stored. The Marketplace policy names this repository, this
-  # workflow file and the publish-packages environment.
-  marketplace:
-    name: Publish the Visual Studio extension
+  # Builds the Visual Studio extension around the packed package. It holds no secret and waits for no
+  # approval, so a dry run from any branch exercises it, and both publishing jobs wait for it: a
+  # package the extension cannot carry (a prerelease, a build failure) stops the release before
+  # either registry receives anything.
+  extension:
+    name: Build the Visual Studio extension
     needs: pack
     # A job that needs Windows runs on a GitHub-hosted Windows runner: the Visual Studio SDK that
-    # builds the VSIX (VsixUtil.exe) and VsixPublisher.exe that publishes it exist only for Windows.
+    # builds the VSIX runs VsixUtil.exe, which exists only for Windows.
     runs-on: windows-latest
-    # The run waits for a reviewer's approval before any step starts; a dry run waits too.
-    environment: publish-packages
-    # 10m override on the 5m baseline: a Windows runner sets up slower, and the job talks to the
-    # Marketplace twice (token exchange, upload).
+    # 10m override on the 5m baseline: a Windows runner sets up slower than a Linux one.
     timeout-minutes: 10
     permissions:
       contents: read
-      id-token: write # Sigstore OIDC for build-provenance attestation, and the Marketplace token exchange
-      attestations: write # record SLSA L3 provenance in the repo
+    outputs:
+      sha256: ${{ steps.vsix.outputs.sha256 }}
+      version: ${{ steps.vsix.outputs.version }}
     defaults:
       run:
         shell: pwsh
@@ -318,12 +318,145 @@ jobs:
             $zip.Dispose()
           }
           $version = $manifest.PackageManifest.Metadata.Identity.Version
-          "path=$($files[0].FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          $sha256 = (Get-FileHash -Algorithm SHA256 -LiteralPath $files[0].FullName).Hash.ToLowerInvariant()
           "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "sha256=$sha256" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          @('## Visual Studio extension', '', "Version: ``$version``", '', 'Built.') |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+        timeout-minutes: 3
+
+      - name: Hand the extension to the publishing job
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: templates-extension
+          path: extension/*.vsix
+          if-no-files-found: error
+          retention-days: 3
+        timeout-minutes: 3
+
+  # Visual Studio Marketplace trusted publishing: the job exchanges GitHub's OIDC token for a
+  # Marketplace credential valid for 15 minutes, so no long-lived token is stored. The Marketplace
+  # policy names this repository, this workflow file and the publish-packages environment.
+  marketplace:
+    name: Publish the Visual Studio extension
+    needs: [pack, extension]
+    if: ${{ !inputs.dry_run }}
+    # A job that needs Windows runs on a GitHub-hosted Windows runner: VsixPublisher.exe, which
+    # publishes the extension, is a .NET Framework program that exists only for Windows.
+    runs-on: windows-latest
+    # The run waits for a reviewer's approval before any step starts.
+    environment: publish-packages
+    # 10m override on the 5m baseline: a Windows runner sets up slower, and the job talks to the
+    # Marketplace twice (token exchange, upload).
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # Sigstore OIDC for build-provenance attestation, and the Marketplace token exchange
+      attestations: write # record SLSA L3 provenance in the repo
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Harden runner (audit egress)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+        timeout-minutes: 3
+
+      # The publish manifest and the Marketplace page live in Vsix/, and restoring the extension
+      # project brings VsixPublisher.exe at the version the project pins.
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+        timeout-minutes: 3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: '10.0'
+        timeout-minutes: 3
+
+      # VsixPublisher.exe in Microsoft.VSSDK.BuildTools 18.12.1606 references one version of
+      # Microsoft.Identity.Client and ships another without a binding redirect, so it dies with
+      # VsixPub0031 before authenticating. A copy of its folder gets the redirect to the version it
+      # actually ships, read from the assembly itself.
+      - name: Prepare VsixPublisher
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet restore Vsix/Abblix.Templates.Vsix.csproj
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          $packaged = (dotnet msbuild Vsix/Abblix.Templates.Vsix.csproj -getProperty:VsixPublisherPath | Out-String).Trim()
+          if (-not (Test-Path -LiteralPath $packaged)) {
+            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher.exe not found at '$packaged', the path the extension project names inside its Microsoft.VSSDK.BuildTools package"
+            exit 1
+          }
+          $folder = Join-Path $env:RUNNER_TEMP 'vsixpublisher'
+          Copy-Item -Recurse -LiteralPath (Split-Path -Parent $packaged) -Destination $folder
+          $exe = Join-Path $folder 'VsixPublisher.exe'
+          $msal = Join-Path $folder 'lib/Microsoft.Identity.Client.dll'
+          $msalVersion = [System.Reflection.AssemblyName]::GetAssemblyName($msal).Version.ToString()
+
+          $configPath = "$exe.config"
+          $config = New-Object System.Xml.XmlDocument
+          $config.PreserveWhitespace = $true
+          $config.Load($configPath)
+          $ns = 'urn:schemas-microsoft-com:asm.v1'
+          $names = New-Object System.Xml.XmlNamespaceManager($config.NameTable)
+          $names.AddNamespace('asm', $ns)
+          $binding = $config.SelectSingleNode('/configuration/runtime/asm:assemblyBinding', $names)
+          if (-not $binding) {
+            Write-Output "::error title=Visual Studio Marketplace::$configPath has no assemblyBinding section to add the Microsoft.Identity.Client redirect to"
+            exit 1
+          }
+          $dependency = $config.SelectSingleNode("/configuration/runtime/asm:assemblyBinding/asm:dependentAssembly[asm:assemblyIdentity/@name='Microsoft.Identity.Client']", $names)
+          if (-not $dependency) {
+            $dependency = $config.CreateElement('dependentAssembly', $ns)
+            $identity = $config.CreateElement('assemblyIdentity', $ns)
+            $identity.SetAttribute('name', 'Microsoft.Identity.Client')
+            $identity.SetAttribute('publicKeyToken', '0a613f4dd989e8ae')
+            $identity.SetAttribute('culture', 'neutral')
+            [void]$dependency.AppendChild($identity)
+            [void]$binding.AppendChild($dependency)
+          }
+          $redirect = $dependency.SelectSingleNode('asm:bindingRedirect', $names)
+          if (-not $redirect) {
+            $redirect = $config.CreateElement('bindingRedirect', $ns)
+            [void]$dependency.AppendChild($redirect)
+          }
+          $redirect.SetAttribute('oldVersion', "0.0.0.0-$msalVersion")
+          $redirect.SetAttribute('newVersion', $msalVersion)
+          $config.Save($configPath)
+          Write-Output "Microsoft.Identity.Client redirected to $msalVersion"
+          "VSIX_PUBLISHER=$exe" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        timeout-minutes: 3
+
+      - name: Download the extension
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: templates-extension
+          path: extension
+        timeout-minutes: 3
+
+      - name: Check the extension is the one built
+        env:
+          EXPECTED_SHA256: ${{ needs.extension.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $files = @(Get-ChildItem -Path extension -Filter *.vsix -File)
+          if ($files.Count -ne 1) {
+            Write-Output "::error title=Extension digest::Expected exactly one downloaded extension, found $($files.Count)"
+            exit 1
+          }
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $files[0].FullName).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SHA256) {
+            Write-Output "::error title=Extension digest::The downloaded extension has SHA-256 $actual, the build job recorded $($env:EXPECTED_SHA256). Skipped step: none can be redone here; dispatch the workflow anew so the extension is built again"
+            exit 1
+          }
+          "VSIX_PATH=$($files[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         timeout-minutes: 3
 
       - name: Attest build provenance
-        if: ${{ !inputs.dry_run }}
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: 'extension/*.vsix'
@@ -332,23 +465,15 @@ jobs:
       # VsixPublisher's own -oidc exchange is rejected by the Marketplace (it sends no api-version),
       # so this step makes the exchange with the contract vsce uses and hands the 15-minute
       # credential to VsixPublisher as its token. The GitHub token and the credential stay inside
-      # this one step and are masked before anything could print them.
+      # this one step and are masked before anything could print them. Every failure writes its
+      # own annotation naming the step to redo.
       - name: Publish to the Visual Studio Marketplace
-        id: publish
-        if: ${{ !inputs.dry_run }}
-        env:
-          VSIX_PATH: ${{ steps.vsix.outputs.path }}
         run: |
           $ErrorActionPreference = 'Stop'
           $manifestPath = 'Vsix/publishManifest.json'
           $publisherName = (Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json).publisher
           if (-not $publisherName) {
             Write-Output "::error title=Visual Studio Marketplace::$manifestPath names no publisher"
-            exit 1
-          }
-          $vsixPublisher = (dotnet msbuild Vsix/Abblix.Templates.Vsix.csproj -getProperty:VsixPublisherPath | Out-String).Trim()
-          if (-not (Test-Path -LiteralPath $vsixPublisher)) {
-            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher.exe not found at '$vsixPublisher', the path the extension project names inside its Microsoft.VSSDK.BuildTools package"
             exit 1
           }
 
@@ -379,7 +504,7 @@ jobs:
             # holds one line, so the message is taken from it rather than the whole body.
             $reason = $_.ErrorDetails.Message
             try { $reason = ($reason | ConvertFrom-Json).message } catch { $reason = "$reason" -replace '\s+', ' ' }
-            Write-Output "::error title=Visual Studio Marketplace trusted publishing::The Marketplace issued no credential for this run (HTTP $status): $reason Skipped step: on https://marketplace.visualstudio.com/manage open the publisher $publisherName, select Trusted Publishing and create the policy (repository owner Abblix, repository Templates, workflow publish-templates.yml, environment publish-packages); when the publisher does not exist yet, create it with the id $publisherName first. Then re-run the failed job"
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::The Marketplace issued no credential for this run (HTTP $status): $reason Skipped step: on https://marketplace.visualstudio.com/manage open the publisher $publisherName, select Trusted Publishing and check the policy names repository owner Abblix, repository Templates, workflow publish-templates.yml and environment publish-packages and is active; then re-run the failed job, or dispatch the workflow anew when the run is older than the three days its artifacts are kept"
             exit 1
           }
           $credential = $exchange.credential
@@ -389,32 +514,11 @@ jobs:
           }
           Write-Output "::add-mask::$credential"
 
-          & $vsixPublisher publish -payload $env:VSIX_PATH -publishManifest $manifestPath -personalAccessToken $credential
-          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        timeout-minutes: 5
-
-      - name: Name the skipped step when the Marketplace refused the extension
-        if: ${{ failure() && steps.publish.outcome == 'failure' }}
-        run: |
-          Write-Output "::error title=Visual Studio Marketplace::Publishing the extension failed; the step log above names the reason. Skipped step: when it names the publisher or the policy, fix them on https://marketplace.visualstudio.com/manage and re-run the failed job. When it names the extension itself (manifest, overview, categories), fix the files under Vsix/, merge the fix into master and dispatch the workflow anew from master: a re-run builds from the same commit"
-          exit 1
-        timeout-minutes: 3
-
-      - name: Summary
-        env:
-          VSIX_VERSION: ${{ steps.vsix.outputs.version }}
-          DRY_RUN: ${{ inputs.dry_run }}
-        run: |
-          $lines = @(
-            '## Visual Studio extension',
-            '',
-            "Version: ``$($env:VSIX_VERSION)``",
-            ''
-          )
-          if ($env:DRY_RUN -eq 'true') {
-            $lines += 'Dry run: built, not published.'
-          } else {
-            $lines += 'Published to the Visual Studio Marketplace.'
+          & $env:VSIX_PUBLISHER publish -payload $env:VSIX_PATH -publishManifest $manifestPath -personalAccessToken $credential
+          if ($LASTEXITCODE -ne 0) {
+            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher refused the extension; its log above names the reason. Skipped step: when it names the publisher or the token, fix them on https://marketplace.visualstudio.com/manage and re-run the failed job. When it names the extension itself (manifest, overview, categories), fix the files under Vsix/, merge the fix into master and dispatch anew from master; if anything outside Vsix/ changed on master since this run, raise PackageVersion first, since NuGet.org keeps the package it already has and the extension would carry different templates under the same version"
+            exit $LASTEXITCODE
           }
-          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
-        timeout-minutes: 3
+          @('', 'Published to the Visual Studio Marketplace.') |
+            Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
+        timeout-minutes: 5

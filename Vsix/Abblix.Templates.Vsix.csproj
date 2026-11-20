@@ -49,7 +49,8 @@
       <_TemplatePackageDir>$(IntermediateOutputPath)template-package\</_TemplatePackageDir>
     </PropertyGroup>
     <RemoveDir Directories="$(_TemplatePackageDir)" />
-    <Unzip SourceFiles="$(TemplatePackage)" DestinationFolder="$(_TemplatePackageDir)" Include="*.nuspec" />
+    <!-- Named in full: under MSBuild.exe the VS SDK registers a task of its own called Unzip. -->
+    <Microsoft.Build.Tasks.Unzip SourceFiles="$(TemplatePackage)" DestinationFolder="$(_TemplatePackageDir)" Include="*.nuspec" />
     <ItemGroup>
       <_TemplateNuspec Include="$(_TemplatePackageDir)*.nuspec" />
     </ItemGroup>
