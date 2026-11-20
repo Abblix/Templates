@@ -30,8 +30,8 @@
 
 Abblix ASP.NET Core Templates includes three templates designed to simplify and accelerate your development process. These templates provide a solid foundation for building modern web applications and identity providers with ASP.NET Core.
 
-- [ASP.NET Core WebAPI with React and Vite Template](https://github.com/Abblix/Templates/tree/master/ReactTemplate) (`abblix-react`):
-This template serves as a starting point for creating an ASP.NET Core WebAPI project combined with a React frontend using TypeScript and Vite. It establishes a fundamental project structure and essential configurations, enabling developers to kickstart their applications swiftly.
+- [ASP.NET Core MVC with React and Vite](https://github.com/Abblix/Templates/tree/master/ReactTemplate) (`abblix-react`):
+An ASP.NET Core MVC host with a React single-page app written in TypeScript and built by Vite. In development the host starts the Vite dev server, which forwards `/api` calls to the host; a published app serves the built pages from `wwwroot`.
 - OpenID Connect Provider Templates:
 Two templates for building an OpenID Connect Provider using ASP.NET Core in conjunction with Abblix OIDC Server 3.0. Both serve the OpenID endpoints at whatever host name a request arrives with and build the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of the `*` they ship with.
   - `abblix-oidc-server` ([OpenIDProviderIdentityTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderIdentityTemplate)): the starting point for a real project. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the signing key and client registrations are stored in SQLite as well, so a restart keeps them.
