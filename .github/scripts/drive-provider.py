@@ -235,9 +235,11 @@ if callback:
         status, _, body = call(user, sign_out["action"], sign_out["fields"])
         confirmation = only_form(body)
     else:
-        confirmation = None
-    if confirmation is not None and check("sign-out with no ID token asks to confirm", status == 200 and
-                                          "confirmation" in confirmation["fields"], f"{status} {body[:300]}"):
+        status, body, confirmation = None, "", None
+    # Recorded whatever the page held: a page with no form, or several, fails here instead of skipping the steps
+    # after it
+    if check("sign-out with no ID token asks to confirm", confirmation is not None and status == 200 and
+             "confirmation" in confirmation["fields"], f"{status} {body[:300]}"):
         status, location, body = call(user, confirmation["action"], confirmation["fields"])
         if check("confirmed sign-out returns to the demo client", redirect(status) and "/demo/signed-out" in location,
                  f"{status} {location} {body[:300]}"):

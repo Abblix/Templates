@@ -222,9 +222,8 @@ jobs:
             cd "$GITHUB_WORKSPACE"
             echo "OIDC provider template, $host host: OK"
           done
-          # The default sample user with no --password: the first run generates its password, prints it and, on an
-          # interactive console, waits for Enter. With stdin redirected it must start without waiting, and the
-          # user must be in users.db, read with SQLite rather than from the printed line.
+          # The default sample user with no --password, a path the scaffolds above never compile: the project must
+          # build, start and seed demo@example.com into users.db, read with SQLite rather than from the printed line.
           name=SmokeOidcGenerated
           work="$RUNNER_TEMP/$name"
           dotnet new abblix-oidc-server -n "$name" -o "$work"
