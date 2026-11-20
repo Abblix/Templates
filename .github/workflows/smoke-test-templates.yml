@@ -42,13 +42,12 @@ concurrency:
 
 jobs:
   smoke:
-    name: Scaffold, build and run both templates
+    name: Scaffold, build and run every template
     runs-on: ubuntu-latest
-    # Back to the 5m baseline, with no override, because the whole job is now MEASURED at 61s on a
-    # cold runner - packing, three scaffolds, three builds, an npm ci, a vite build, a publish and
-    # three live host runs. The old 20m was not a measurement of anything: no run had ever finished, so
-    # the number was picked to be safe, and that is exactly what let a hung run burn 25 minutes twice.
-    timeout-minutes: 5
+    # Above the 5m baseline because each provider template now runs twice, once per host style: five
+    # scaffolds, five builds, three npm ci runs and nine live host runs, where three of each measured 61s
+    # on a cold runner. 8m is a ceiling for that unmeasured shape, to be set from the next runs' durations.
+    timeout-minutes: 8
     steps:
       - name: Harden runner (audit egress)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -65,9 +64,8 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
-          # Both, because the templates do not share one: the OpenID provider templates target .NET 11, which
-          # Abblix OIDC Server 3.0 requires, and the React template still targets .NET 10, whose runtime its
-          # published host needs to start.
+          # Both: every template targets .NET 11, which Abblix OIDC Server 3.0 requires, while the packing
+          # project Abblix.Templates.csproj still targets net10.0.
           dotnet-version: |
             10.0.x
             11.0.x
@@ -114,107 +112,121 @@ jobs:
       # together. What keeps CI safe is therefore the absence, plus the reason it can stay absent: each
       # template's csproj already runs npm ci when its package-lock.json is newer than the last install, so a post-action doing the
       # same buys nothing and costs an interactive prompt.
-      - name: OIDC provider (Identity + EF) - scaffold, build, send its requests
-        # The production template: Identity + EF/SQLite users, durable client and
-        # signing-key stores, Bootstrap bundled from ClientAssets by Vite. Builds,
-        # runs it (seeds SQLite and the --user on first start; --password is given, so no console pause;
-        # its quote and backslash land in a C# literal, so a broken escaping form fails the build) and
-        # sends the requests of its requests.http: discovery, jwks, a client credentials token and its
-        # introspection. The heaviest step: cold npm ci, vite build, EF restore.
+      - name: OIDC provider (Identity + EF) - scaffold both host styles, build, drive every flow
+        # The production template: Identity + EF/SQLite users, durable client and signing-key stores,
+        # Bootstrap bundled from ClientAssets by Vite. Scaffolded once per host style, since the two share
+        # settings and clients but not the code that signs users in and out, so a defect in one is invisible
+        # in the other. Each is built and run (seeding SQLite and the --user on first start; --password is
+        # given, so no console pause; its quote and backslash land in a C# literal, so a broken escaping form
+        # fails the build) and driven through every flow by drive-provider.py: discovery, jwks, client
+        # credentials and introspection, a sign-in through the demo client to a code, its tokens, userinfo,
+        # a refresh, both sign-out pages, and the forged and empty login forms. The heaviest step: two cold
+        # npm ci runs, vite builds, EF restore.
         # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
         env:
-          # Only appsettings.Development.json declares the demo clients, console_client among them; the host
-          # otherwise starts as Production with none and refuses the token request below. The last run
-          # overrides it with Production to prove exactly that refusal.
+          # Only appsettings.Development.json declares the demo clients; the host otherwise starts as Production
+          # with none. The last run of each style overrides it with Production to prove exactly that refusal.
           ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
-          work="$RUNNER_TEMP/oidc"
-          dotnet new abblix-oidc-server -n SmokeOidc -o "$work" --user smoke@example.com --password 'Sm0ke!"pass\word'
-          url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
-          port="${url##*:}"
-          [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
-            { echo "::error::launchSettings.json names $url, not a port generated between 7000 and 7300"; exit 1; }
-          echo "Generated address: $url"
-          dotnet build "$work" -c Release
-          # From the OUTPUT directory, not from the checkout. appsettings.json sits next to the dll
-          # and ASP.NET Core resolves it against the working directory, so starting the app anywhere
-          # else loads NO configuration: every connection string comes back null, EF hands SQLite an
-          # empty data source, and an empty data source means a private temporary database per
-          # connection. EnsureCreated then creates the tables in one throwaway database and the next
-          # query opens another, so the app dies on "no such table: SigningKeys" and the whole thing
-          # reads as a broken template. Measured both ways: from the checkout, not one .db file exists
-          # anywhere afterwards; from here, discovery answers and oidc.db/users.db are on disk.
-          cd "$work/bin/Release/net11.0"
-          # At the address launchSettings.json names, over HTTPS, which the OpenID endpoints require.
-          dotnet ./SmokeOidc.dll --urls "$url" &
-          pid=$!
-          ok=0
-          for _ in $(seq 1 40); do
-            if curl -skf "$url/.well-known/openid-configuration" -o disco.json; then ok=1; break; fi
-            sleep 1
+          driver="$GITHUB_WORKSPACE/.github/scripts/drive-provider.py"
+          login=smoke@example.com
+          password='Sm0ke!"pass\word'
+          for host in minimal mvc; do
+            name="SmokeOidc_$host"
+            work="$RUNNER_TEMP/$name"
+            dotnet new abblix-oidc-server -n "$name" -o "$work" --host "$host" --user "$login" --password "$password"
+            url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
+            port="${url##*:}"
+            [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
+              { echo "::error::$host: launchSettings.json names $url, not a port generated between 7000 and 7300"; exit 1; }
+            echo "$host: generated address $url"
+            # The package of the chosen style, and only that one, as MSBuild evaluates the project
+            packages=$(dotnet msbuild "$work/$name.csproj" -getItem:PackageReference | jq -r '[.Items.PackageReference[].Identity | select(startswith("Abblix.Oidc.Server."))] | join(",")')
+            expected=$([ "$host" = mvc ] && echo Abblix.Oidc.Server.Mvc || echo Abblix.Oidc.Server.MinimalApi)
+            [ "$packages" = "$expected" ] ||
+              { echo "::error::$host: the project references $packages, not $expected"; exit 1; }
+            dotnet build "$work" -c Release
+            # From the OUTPUT directory, not from the checkout. appsettings.json sits next to the dll
+            # and ASP.NET Core resolves it against the working directory, so starting the app anywhere
+            # else loads NO configuration: every connection string comes back null, EF hands SQLite an
+            # empty data source, and an empty data source means a private temporary database per
+            # connection. EnsureCreated then creates the tables in one throwaway database and the next
+            # query opens another, so the app dies on "no such table: SigningKeys" and the whole thing
+            # reads as a broken template.
+            cd "$work/bin/Release/net11.0"
+            # At the address launchSettings.json names, over HTTPS, which the OpenID endpoints require.
+            Logging__Console__FormatterName=json dotnet "./$name.dll" --urls "$url" > host.log 2>&1 &
+            pid=$!
+            ok=0
+            for _ in $(seq 1 40); do
+              if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+              sleep 1
+            done
+            driven=0
+            if [ "$ok" = 1 ]; then
+              python3 -I "$driver" "$url" "$login" "$password" && driven=1
+            fi
+            # Holds only while https://localhost:5004 is a registered resource: an unknown one is refused too.
+            refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+              -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
+            # Waited for, so the next run can take the same address.
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            [ "$ok" = 1 ] || { cat host.log; echo "::error::$host: OIDC discovery endpoint did not respond"; exit 1; }
+            [ "$driven" = 1 ] || { echo "::error::$host: a flow of the provider failed, named above"; exit 1; }
+            if [ "$refused" != 400 ] || ! jq -e '.error == "invalid_target"' refused.json > /dev/null; then
+              echo "::error::$host: OIDC token endpoint did not refuse console_client a token for https://localhost:5004 with 400 invalid_target"
+              exit 1
+            fi
+            # The host's log carries no error or stack trace from any of those flows. It is written as JSON, one
+            # entry per line, so each entry's level is read by the JSON parser; a line that is not JSON is the
+            # console output the template prints itself.
+            python3 -I -c '
+          import json, sys
+          errors = []
+          for line in open(sys.argv[1], encoding="utf-8"):
+              try:
+                  entry = json.loads(line)
+              except ValueError:
+                  continue
+              if isinstance(entry, dict) and entry.get("LogLevel") in ("Error", "Critical"):
+                  errors.append(line.strip())
+          for error in errors:
+              print(error)
+          sys.exit(1 if errors else 0)' host.log ||
+              { echo "::error::$host: the host logged an error while its flows were driven"; exit 1; }
+            # Again in Production, on a database never run in Development: the template must start there, and with
+            # no client in appsettings.json the demo clients' published secret must open nothing.
+            rm -f oidc.db oidc.db-wal oidc.db-shm
+            ASPNETCORE_ENVIRONMENT=Production dotnet "./$name.dll" --urls "$url" &
+            pid=$!
+            ok=0
+            for _ in $(seq 1 40); do
+              if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+              sleep 1
+            done
+            unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+              -d client_id=console_client -d client_secret=secret) || unseeded=none
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            [ "$ok" = 1 ] || { echo "::error::$host: OIDC provider template did not start in Production: discovery did not respond"; exit 1; }
+            if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
+              echo "::error::$host: OIDC provider template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
+              exit 1
+            fi
+            cd "$GITHUB_WORKSPACE"
+            echo "OIDC provider template, $host host: OK"
           done
-          jwks=0
-          curl -skf "$url/.well-known/jwks" -o jwks.json && jwks=1
-          token=0
-          curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
-            -d client_secret=secret -o token.json && token=1
-          introspection=0
-          if [ "$token" = 1 ] && access_token=$(jq -er '.access_token' token.json); then
-            curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
-              -d client_id=console_client -d client_secret=secret -o introspection.json && introspection=1
-          fi
-          # Holds only while https://localhost:5004 is a registered resource: an unknown one is refused too.
-          refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-            -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
-          # Waited for, so the next template can take the same address.
-          kill "$pid" 2>/dev/null || true
-          wait "$pid" 2>/dev/null || true
-          [ "$ok" = 1 ] || { echo "::error::OIDC discovery endpoint did not respond"; exit 1; }
-          jq -e --arg url "$url" '.issuer == $url' disco.json > /dev/null ||
-            { echo "::error::discovery does not name $url, the address in launchSettings.json, as its issuer"; exit 1; }
-          [ "$jwks" = 1 ] || { echo "::error::OIDC jwks endpoint did not respond"; exit 1; }
-          # Exactly one: the template persists one signing key, and a provider serving none signs nothing.
-          jq -e '.keys | length == 1' jwks.json > /dev/null ||
-            { echo "::error::jwks does not serve exactly one signing key"; exit 1; }
-          jq -e --arg url "$url" '.introspection_endpoint == $url + "/connect/introspect"' disco.json > /dev/null ||
-            { echo "::error::OIDC discovery does not name $url/connect/introspect as its introspection endpoint"; exit 1; }
-          [ "$token" = 1 ] || { echo "::error::OIDC token endpoint issued no token to console_client"; exit 1; }
-          [ "$introspection" = 1 ] || { echo "::error::OIDC introspection endpoint did not answer for the token just issued"; exit 1; }
-          jq -e '.active == true and .client_id == "console_client"' introspection.json > /dev/null ||
-            { echo "::error::OIDC introspection does not report the token just issued as active for console_client"; exit 1; }
-          if [ "$refused" != 400 ] || ! jq -e '.error == "invalid_target"' refused.json > /dev/null; then
-            echo "::error::OIDC token endpoint did not refuse console_client a token for https://localhost:5004 with 400 invalid_target"
-            exit 1
-          fi
-          # Again in Production, on a database never run in Development: the template must start there, and with
-          # no client in appsettings.json the demo clients' published secret must open nothing.
-          rm -f oidc.db oidc.db-wal oidc.db-shm
-          ASPNETCORE_ENVIRONMENT=Production dotnet ./SmokeOidc.dll --urls "$url" &
-          pid=$!
-          ok=0
-          for _ in $(seq 1 40); do
-            if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
-            sleep 1
-          done
-          unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-            -d client_id=console_client -d client_secret=secret) || unseeded=none
-          kill "$pid" 2>/dev/null || true
-          wait "$pid" 2>/dev/null || true
-          [ "$ok" = 1 ] || { echo "::error::OIDC provider template did not start in Production: discovery did not respond"; exit 1; }
-          if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
-            echo "::error::OIDC provider template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
-            exit 1
-          fi
-          echo "OIDC provider template OK"
-        # Baseline 3m; measured 35s with the Production run, the heaviest of the three (it carries the cold
-        # NuGet restore).
-        timeout-minutes: 3
+        # Baseline 3m; one style measured 35s with the Production run, so the two styles have not been measured
+        # together yet and the ceiling is set from the next runs.
+        timeout-minutes: 4
 
-      - name: OIDC getting-started (in-memory) - scaffold, build, send its requests
-        # The learning template: in-memory stores and an ephemeral key, no npm.
+      - name: OIDC getting-started (in-memory) - scaffold both host styles, build, drive every flow
+        # The learning template: in-memory stores and an ephemeral key, no npm. Scaffolded once per host style,
+        # for the reason given in the step above, and driven through the same flows.
         # Created WITH --https-port, so it proves the explicit-port path. The port lies outside the
         # generator's range, so a project that ignored the option could not pass by chance.
         # --user and --password carry a quote, a backslash and braces, which land in C# literals in
@@ -224,106 +236,87 @@ jobs:
           ASPNETCORE_ENVIRONMENT: Development
         run: |
           set -euo pipefail
-          work="$RUNNER_TEMP/oidc-gs"
+          driver="$GITHUB_WORKSPACE/.github/scripts/drive-provider.py"
           url="https://localhost:5443"
-          dotnet new abblix-oidc-server-gettingstarted -n SmokeOidcGs -o "$work" --https-port 5443 --user 'a"b\{c}' --password 'p"\q'
-          jq -e --arg url "$url" '.profiles.https.applicationUrl == $url' "$work/Properties/launchSettings.json" > /dev/null ||
-            { echo "::error::launchSettings.json does not name $url, the address given with --https-port"; exit 1; }
-          dotnet build "$work" -c Release
-          # From the output directory, for the reason spelled out in the step above.
-          cd "$work/bin/Release/net11.0"
-          # At the address given with --https-port, over HTTPS, for the reason given in the step above.
-          dotnet ./SmokeOidcGs.dll --urls "$url" &
-          pid=$!
-          ok=0
-          for _ in $(seq 1 30); do
-            if curl -skf "$url/.well-known/openid-configuration" -o disco-gs.json; then ok=1; break; fi
-            sleep 1
+          login='a"b\{c}'
+          password='p"\q'
+          for host in minimal mvc; do
+            name="SmokeOidcGs_$host"
+            work="$RUNNER_TEMP/$name"
+            dotnet new abblix-oidc-server-gettingstarted -n "$name" -o "$work" --host "$host" --https-port 5443 --user "$login" --password "$password"
+            jq -e --arg url "$url" '.profiles.https.applicationUrl == $url' "$work/Properties/launchSettings.json" > /dev/null ||
+              { echo "::error::$host: launchSettings.json does not name $url, the address given with --https-port"; exit 1; }
+            packages=$(dotnet msbuild "$work/$name.csproj" -getItem:PackageReference | jq -r '[.Items.PackageReference[].Identity | select(startswith("Abblix.Oidc.Server."))] | join(",")')
+            expected=$([ "$host" = mvc ] && echo Abblix.Oidc.Server.Mvc || echo Abblix.Oidc.Server.MinimalApi)
+            [ "$packages" = "$expected" ] ||
+              { echo "::error::$host: the project references $packages, not $expected"; exit 1; }
+            dotnet build "$work" -c Release
+            # From the output directory, for the reason spelled out in the step above.
+            cd "$work/bin/Release/net11.0"
+            Logging__Console__FormatterName=json dotnet "./$name.dll" --urls "$url" > host.log 2>&1 &
+            pid=$!
+            ok=0
+            for _ in $(seq 1 30); do
+              if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+              sleep 1
+            done
+            driven=0
+            if [ "$ok" = 1 ]; then
+              python3 -I "$driver" "$url" "$login" "$password" && driven=1
+            fi
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            [ "$ok" = 1 ] || { cat host.log; echo "::error::$host: getting-started discovery did not respond"; exit 1; }
+            [ "$driven" = 1 ] || { echo "::error::$host: a flow of the getting-started provider failed, named above"; exit 1; }
+            # The host's log carries no error or stack trace from any of those flows. It is written as JSON, one
+            # entry per line, so each entry's level is read by the JSON parser; a line that is not JSON is the
+            # console output the template prints itself.
+            python3 -I -c '
+          import json, sys
+          errors = []
+          for line in open(sys.argv[1], encoding="utf-8"):
+              try:
+                  entry = json.loads(line)
+              except ValueError:
+                  continue
+              if isinstance(entry, dict) and entry.get("LogLevel") in ("Error", "Critical"):
+                  errors.append(line.strip())
+          for error in errors:
+              print(error)
+          sys.exit(1 if errors else 0)' host.log ||
+              { echo "::error::$host: the host logged an error while its flows were driven"; exit 1; }
+            # Again in Production, where appsettings.json must declare no client, as in the step above.
+            ASPNETCORE_ENVIRONMENT=Production dotnet "./$name.dll" --urls "$url" &
+            pid=$!
+            ok=0
+            for _ in $(seq 1 30); do
+              if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+              sleep 1
+            done
+            unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
+              -d client_id=console_client -d client_secret=secret) || unseeded=none
+            authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid&redirect_uri=https%3A%2F%2Flocalhost%3A5443%2Fdemo%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
+            unknown=$(curl -sk -o unknown.json -w '%{http_code}' "$authorize") || unknown=none
+            demo=$(curl -sk -o /dev/null -w '%{http_code}' "$url/demo/start") || demo=none
+            kill "$pid" 2>/dev/null || true
+            wait "$pid" 2>/dev/null || true
+            [ "$ok" = 1 ] || { echo "::error::$host: getting-started template did not start in Production: discovery did not respond"; exit 1; }
+            if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
+              echo "::error::$host: getting-started template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
+              exit 1
+            fi
+            if [ "$unknown" != 400 ] || ! jq -e '.error == "unauthorized_client"' unknown.json > /dev/null; then
+              echo "::error::$host: getting-started template declares a demo client outside appsettings.Development.json: in Production the authorization request of test_client was not refused with 400 unauthorized_client"
+              exit 1
+            fi
+            # The demo client's pages exist only where its client does
+            [ "$demo" = 404 ] ||
+              { echo "::error::$host: in Production the demo client's start page answered $demo, not 404"; exit 1; }
+            cd "$GITHUB_WORKSPACE"
+            echo "OIDC getting-started template, $host host: OK"
           done
-          jwks=0
-          curl -skf "$url/.well-known/jwks" -o jwks-gs.json && jwks=1
-          # The third and fourth requests of the project's requests.http: a token for console_client from the
-          # client credentials grant, then introspection of that token by the same client.
-          token=0
-          curl -skf "$url/connect/token" -d grant_type=client_credentials -d client_id=console_client \
-            -d client_secret=secret -o token-gs.json && token=1
-          introspection=0
-          if [ "$token" = 1 ] && access_token=$(jq -er '.access_token' token-gs.json); then
-            curl -skf "$url/connect/introspect" --data-urlencode "token=$access_token" \
-              -d client_id=console_client -d client_secret=secret -o introspection-gs.json && introspection=1
-          fi
-          # The sign-in that requests.http walks through in a browser, as test_client: the authorization request
-          # answers with the login page, the --user signs in there, the provider sends the browser on to the
-          # redirect URI with a code, and the code is exchanged for tokens with the verifier of code_challenge.
-          authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid%20profile%20email&state=smoke&redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
-          signin=0
-          if login=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$authorize") &&
-            [ "${login%%\?*}" = "$url/Auth/Login" ] &&
-            back=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$url/Auth/Login" \
-              --data-urlencode 'email=a"b\{c}' --data-urlencode 'password=p"\q' -d "requestUri=${login#*request_uri=}") &&
-            callback=$(curl -sk -b jar-gs -c jar-gs -o /dev/null -w '%{redirect_url}' "$back") &&
-            authorization_code=$(python3 -I -c 'import sys, urllib.parse as p
-          u = p.urlsplit(sys.argv[1]); q = p.parse_qs(u.query)
-          assert p.urlunsplit(u._replace(query="")) == "http://127.0.0.1/callback" and q["state"] == ["smoke"], u
-          print(q["code"][0])' "$callback"); then
-            signin=1
-          fi
-          # Without -f, so a refusal keeps its body, whose error and error_description the check below prints.
-          exchange=none
-          if [ "$signin" = 1 ]; then
-            exchange=$(curl -sk -o code-token-gs.json -w '%{http_code}' "$url/connect/token" -d grant_type=authorization_code \
-              --data-urlencode "code=$authorization_code" -d redirect_uri=http%3A%2F%2F127.0.0.1%2Fcallback \
-              -d code_verifier=dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk -d client_id=test_client -d client_secret=secret) ||
-              exchange=none
-          fi
-          kill "$pid" 2>/dev/null || true
-          wait "$pid" 2>/dev/null || true
-          [ "$ok" = 1 ] || { echo "::error::getting-started discovery did not respond"; exit 1; }
-          jq -e --arg url "$url" '.issuer == $url' disco-gs.json > /dev/null ||
-            { echo "::error::getting-started discovery does not name $url, the address given with --https-port, as its issuer"; exit 1; }
-          [ "$jwks" = 1 ] || { echo "::error::getting-started jwks endpoint did not respond"; exit 1; }
-          # Exactly one: the template generates one signing key at startup.
-          jq -e '.keys | length == 1' jwks-gs.json > /dev/null ||
-            { echo "::error::getting-started jwks does not serve exactly one signing key"; exit 1; }
-          jq -e --arg url "$url" '.introspection_endpoint == $url + "/connect/introspect"' disco-gs.json > /dev/null ||
-            { echo "::error::getting-started discovery does not name $url/connect/introspect as its introspection endpoint"; exit 1; }
-          [ "$token" = 1 ] || { echo "::error::getting-started token endpoint issued no token to console_client"; exit 1; }
-          [ "$introspection" = 1 ] || { echo "::error::getting-started introspection endpoint did not answer for the token just issued"; exit 1; }
-          jq -e '.active == true and .client_id == "console_client"' introspection-gs.json > /dev/null ||
-            { echo "::error::getting-started introspection does not report the token just issued as active for console_client"; exit 1; }
-          [ "$signin" = 1 ] ||
-            { echo "::error::getting-started sign-in as test_client did not reach a code: login page '${login:-}', after sign-in '${back:-}', callback '${callback:-}'"; exit 1; }
-          if [ "$exchange" != 200 ]; then
-            refusal=$(jq -r '"\(.error) (\(.error_description))"' code-token-gs.json 2>/dev/null) || refusal="no JSON body"
-            echo "::error::getting-started token endpoint answered the code of test_client with $exchange: $refusal"
-            exit 1
-          fi
-          jq -e '(.id_token | type == "string") and (.access_token | type == "string") and .token_type == "Bearer"' code-token-gs.json > /dev/null ||
-            { echo "::error::getting-started token endpoint did not answer the code of test_client with an id_token and a Bearer access_token"; exit 1; }
-          # Again in Production, where appsettings.json must declare no client, as in the step above.
-          ASPNETCORE_ENVIRONMENT=Production dotnet ./SmokeOidcGs.dll --urls "$url" &
-          pid=$!
-          ok=0
-          for _ in $(seq 1 30); do
-            if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
-            sleep 1
-          done
-          unseeded=$(curl -sk -o unseeded-gs.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-            -d client_id=console_client -d client_secret=secret) || unseeded=none
-          unknown=$(curl -sk -o unknown-gs.json -w '%{http_code}' "$authorize") || unknown=none
-          kill "$pid" 2>/dev/null || true
-          wait "$pid" 2>/dev/null || true
-          [ "$ok" = 1 ] || { echo "::error::getting-started template did not start in Production: discovery did not respond"; exit 1; }
-          if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded-gs.json > /dev/null; then
-            echo "::error::getting-started template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
-            exit 1
-          fi
-          if [ "$unknown" != 400 ] || ! jq -e '.error == "unauthorized_client"' unknown-gs.json > /dev/null; then
-            echo "::error::getting-started template declares a demo client outside appsettings.Development.json: in Production the authorization request of test_client was not refused with 400 unauthorized_client"
-            exit 1
-          fi
-          echo "OIDC getting-started template OK"
-        # Baseline 3m; measured 9s and 32s with the sign-in and the Production run, in the SDK 11 image.
+        # Baseline 3m; one style measured 9s and 32s with the sign-in and the Production run, so the two styles
+        # together stay inside it.
         timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
@@ -359,9 +352,20 @@ jobs:
             if curl -skf "$url/" -o root.html; then ok=1; break; fi
             sleep 1
           done
+          # A deep link gets the SPA shell too, the host's own endpoint answers JSON, and any other /api path 404
+          deep=$(curl -sk -o deep.html -w '%{http_code}' "$url/some/client/route") || deep=none
+          greeting=$(curl -sk -o greeting.json -w '%{http_code}' "$url/api/greeting") || greeting=none
+          missing=$(curl -sk -o /dev/null -w '%{http_code}' "$url/api/missing") || missing=none
           kill "$pid" 2>/dev/null || true
           [ "$ok" = 1 ] || { echo "::error::React host did not serve root"; exit 1; }
           grep -q 'id="root"' root.html || { echo "::error::served root is not the SPA shell"; exit 1; }
+          if [ "$deep" != 200 ] || ! cmp -s root.html deep.html; then
+            echo "::error::a deep link answered $deep instead of the SPA shell"; exit 1
+          fi
+          if [ "$greeting" != 200 ] || ! jq -e '.message | type == "string"' greeting.json > /dev/null; then
+            echo "::error::/api/greeting answered $greeting without its message"; exit 1
+          fi
+          [ "$missing" = 404 ] || { echo "::error::an unmapped /api path answered $missing instead of 404"; exit 1; }
           echo "React template OK"
         # Baseline 3m; measured 7s.
         timeout-minutes: 3
