@@ -45,7 +45,7 @@ jobs:
     name: Scaffold, build and run both templates
     runs-on: ubuntu-latest
     # Back to the 5m baseline, with no override, because the whole job is now MEASURED at 61s on a
-    # cold runner - packing, three scaffolds, three builds, an npm install, a vite build, a publish and
+    # cold runner - packing, three scaffolds, three builds, an npm ci, a vite build, a publish and
     # three live host runs. The old 20m was not a measurement of anything: no run had ever finished, so
     # the number was picked to be safe, and that is exactly what let a hung run burn 25 minutes twice.
     timeout-minutes: 5
@@ -112,7 +112,7 @@ jobs:
       # offers that option only WHILE a template declares such an action, so on these templates it is
       # rejected outright and the step dies with exit 127. The option and the hazard appear and vanish
       # together. What keeps CI safe is therefore the absence, plus the reason it can stay absent: each
-      # template's csproj already restores npm when node_modules is missing, so a post-action doing the
+      # template's csproj already runs npm ci when its package-lock.json is newer than the last install, so a post-action doing the
       # same buys nothing and costs an interactive prompt.
       - name: OIDC provider (Identity + EF) - scaffold, build, send its requests
         # The production template: Identity + EF/SQLite users, durable client and
@@ -120,7 +120,7 @@ jobs:
         # runs it (seeds SQLite and the --user on first start; --password is given, so no console pause;
         # its quote and backslash land in a C# literal, so a broken escaping form fails the build) and
         # sends the requests of its requests.http: discovery, jwks, a client credentials token and its
-        # introspection. The heaviest step: cold npm install, vite build, EF restore.
+        # introspection. The heaviest step: cold npm ci, vite build, EF restore.
         # Created WITHOUT --https-port, so it proves the generated-port path: the address is read back
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
@@ -327,9 +327,9 @@ jobs:
         timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
-        # dotnet publish runs the PublishRunWebpack target (npm install + vite
+        # dotnet publish runs the PublishRunWebpack target (npm ci + vite
         # build) and copies dist into wwwroot; then serve the published host and
-        # confirm it returns the SPA shell. Cold npm install and vite build
+        # confirm it returns the SPA shell. Cold npm ci and vite build
         # dominate.
         run: |
           set -euo pipefail

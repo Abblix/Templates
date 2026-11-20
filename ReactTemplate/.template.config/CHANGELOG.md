@@ -9,7 +9,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 - Linting moves from ESLint to oxlint: `npm run lint` runs `oxlint` with the React plugin enabled in `.oxlintrc.json`, and `eslint.config.js` and the ESLint packages are gone.
 - The front-end dependencies move to TypeScript 7.0, Vite 8.3.8, `@vitejs/plugin-react` 6 and React 19.2.7. The host still targets .NET 10 and references Microsoft.AspNetCore.SpaProxy 10.0.9, up from 10.0.3.
 - `vite.config.ts` exports and reads the ASP.NET Core development certificate only when serving (the dev server or `vite preview`), never when building, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load read the certificate files, exporting them first when they were missing, so a build where the export failed, such as on a build agent without the .NET SDK, failed with it.
-- `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. A Debug build installs the packages when `ClientApp/node_modules` is missing, and a publish installs and builds them, as before.
+- `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. Every build, Release included, installs the packages with `npm ci`, exactly as `ClientApp/package-lock.json` records them, whenever that lock is newer than the last install, and a publish builds them. In 2.x only a Debug build installed them, with `npm install` and only when `ClientApp/node_modules` was missing, and a publish ran `npm install` again.
 
 ### Added
 
