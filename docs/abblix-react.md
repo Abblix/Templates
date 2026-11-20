@@ -31,7 +31,7 @@ A project with the main options set:
 dotnet new abblix-react -n MyApp --https-port 7100 --spa-proxy-port 5200
 ```
 
-The short names `react-net`, `react-typescript` and `react-vite` create the same project.
+The short names `react-dotnet`, `react-typescript` and `react-vite` create the same project.
 
 ## Options
 

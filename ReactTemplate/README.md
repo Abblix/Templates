@@ -76,7 +76,7 @@ Create a project with the short name `abblix-react`:
 dotnet new abblix-react -n MyNewProject
 ```
 
-The short names `react-net`, `react-typescript` and `react-vite` create the same project.
+The short names `react-dotnet`, `react-typescript` and `react-vite` create the same project.
 
 `--https-port` sets the HTTPS port of the host and `--spa-proxy-port` the port of the Vite dev server. When either is omitted or 0, a port free on the machine is picked at random as the project is created. `dotnet new abblix-react -h` lists every option.
 
