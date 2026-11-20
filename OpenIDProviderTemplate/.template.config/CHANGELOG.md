@@ -20,7 +20,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 
 - `--host` picks the host style. `minimal`, the default, maps the OpenID endpoints with `app.MapOidcEndpoints()` from Abblix.Oidc.Server.MinimalApi and serves the home, error and login pages from `MinimalApiPages.cs`, with no MVC controllers or Razor views. `mvc` keeps the 2.x shape: Abblix.Oidc.Server.Mvc, `app.MapOidcControllers()`, and the pages as controllers with views. A project created from 2.x is an MVC host; pass `--host mvc` to compare it with a new one.
 - The demo client's pages, served in Development from `DemoClient.cs`: the home page starts a sign-in as `test_client` with a fresh state and PKCE verifier, and after the login page the browser lands on a page of the project that shows the code, the verifier and the token request, with a button to sign out. `test_client` redirects to those pages, and it may use refresh tokens for the `offline_access` scope.
-- `EndSessionPages.cs` answers the end-session endpoint with a page asking the user to confirm a sign-out that carries no ID token, and a page saying they are signed out when no client asked to be sent back. In 2.x the first answered JSON with `confirmation_required` and left the user signed in, and the second answered an empty 204.
+- `EndSessionPages.cs` answers the end-session endpoint with a page asking the user to confirm a sign-out that carries no ID token, and a page saying they are signed out when no client asked to be sent back.
 - A `.gitignore` for the project.
 - `--https-port` sets the HTTPS port the provider is served on and names in its issuer. When it is omitted or 0, a port free on the machine is picked at random between 7000 and 7300 as the project is created. In 2.x every project used 5001.
 - `--user` and `--password` set the development sample user of the in-memory store, `demo@example.com` by default, so a new project has a user to sign in with; `--user ""` starts the store empty. Without `--password`, a password is generated at every start and printed on the console. It is stored and compared in plaintext.
@@ -34,7 +34,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 ### Fixed
 
 - The login form checks its antiforgery token in the handler. A form submitted from another site is refused, so it can no longer sign the browser in with the other site's account, and a form opened in another tab before a sign-in is shown again rather than refused with a bare 400.
-- A sign-in on the login page opened on its own, with no authorization request to resume, goes to the home page. In 2.x it ended on a JSON error from the authorization endpoint.
+- A sign-in on the login page opened on its own, with no authorization request to resume, goes to the home page.
 
 ### Changed
 

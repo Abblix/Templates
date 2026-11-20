@@ -117,7 +117,7 @@ A client seeded into `oidc.db` keeps its stored row on later runs. When its entr
 
 ## Before deploying
 
-The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when `--user` is given without `--password`, the printed password. Each warning names the fix. Besides them:
+The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when no `--password` is given, the printed password. Each warning names the fix. Besides them:
 
 - Set `Issuer` in `Program.cs` to the provider's public address, the one clients validate its tokens against.
 - Set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of `*`.
