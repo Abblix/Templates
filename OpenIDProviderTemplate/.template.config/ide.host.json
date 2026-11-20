@@ -3,6 +3,11 @@
   "icon": "icon.png",
   "symbolInfo": [
     {
+      "id": "host",
+      "name": { "text": "Host style" },
+      "isVisible": true
+    },
+    {
       "id": "HttpsPort",
       "name": { "text": "HTTPS port" },
       "isVisible": true

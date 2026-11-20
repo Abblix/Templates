@@ -10,7 +10,15 @@ Replace `UserStore.Authenticate` below with the application's own credential che
 that is `UserManager.FindByEmailAsync` followed by `SignInManager.CheckPasswordSignInAsync(user, password,
 lockoutOnFailure: true)`, which checks the password and the lockout without issuing Identity's cookie, as the
 `abblix-oidc-server` template does in its
-[AuthController.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/Controllers/AuthController.cs).
+[AuthController.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/Controllers/AuthController.cs)
+(MVC) and [MinimalApiPages.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/MinimalApiPages.cs)
+(Minimal API).
+
+Both variants below check the antiforgery token inside the handler with `IAntiforgery.IsRequestValidAsync`
+rather than with `[ValidateAntiForgeryToken]` or the antiforgery middleware. Either of those answers a form
+without a valid token with a bare 400, and that is what a user gets who opened the login page in a second tab
+before signing in in the first: the sign-in changed the token, so the older form no longer matches. Checked in
+the handler, a forged form is still refused, and an expired one is shown again with a fresh token.
 
 ## MVC
 
@@ -25,6 +33,7 @@ using Abblix.Oidc.Server.Common.Interfaces;
 using Abblix.Oidc.Server.Features.RandomGenerators;
 using Abblix.Oidc.Server.Features.UserAuthentication;
 using Abblix.Oidc.Server.Model;
+using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Mvc;
 using UriBuilder = Abblix.Utils.UriBuilder;
@@ -32,22 +41,33 @@ using UriBuilder = Abblix.Utils.UriBuilder;
 public class AuthController : Controller
 {
     [HttpGet]
-    public IActionResult Login([FromQuery(Name = "request_uri")] string requestUri)
+    public IActionResult Login([FromQuery(Name = "request_uri")] string? requestUri)
         => View(model: requestUri);
 
     [HttpPost]
-    [ValidateAntiForgeryToken]
     public async Task<IActionResult> Login(
+        [FromServices] IAntiforgery antiforgery,
         [FromServices] UserStore users,
         [FromServices] IAuthSessionService authSessions,
         [FromServices] ISessionIdGenerator sessionIds,
         [FromServices] IOidcEndpointResolver endpoints,
         [FromServices] TimeProvider clock,
-        [FromForm] string email,
-        [FromForm] string password,
-        [FromForm(Name = "request_uri")] string requestUri)
+        [FromForm] string? email,
+        [FromForm] string? password,
+        [FromForm(Name = "request_uri")] string? requestUri)
     {
-        if (users.Authenticate(email, password) is not { } subject)
+        // A page on another site could submit this form with the attacker's own credentials: the victim's browser
+        // would be signed in as the attacker, and whatever the victim then authorizes or enters lands in the
+        // attacker's account. The antiforgery token the form carries is what such a page cannot supply. A form
+        // opened in another tab before signing in carries a token that no longer matches, so it is shown again.
+        if (!await antiforgery.IsRequestValidAsync(HttpContext))
+        {
+            ModelState.AddModelError("", "The sign-in form has expired, please sign in again");
+            return View(model: requestUri);
+        }
+
+        if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) ||
+            users.Authenticate(email, password) is not { } subject)
         {
             ModelState.AddModelError("", "Invalid email or password");
             return View(model: requestUri);
@@ -58,6 +78,10 @@ public class AuthController : Controller
             sessionIds.GenerateSessionId(),
             clock.GetUtcNow(),
             CookieAuthenticationDefaults.AuthenticationScheme));
+
+        // A visit to the login page on its own carries no authorization request to resume
+        if (string.IsNullOrEmpty(requestUri))
+            return Redirect("/");
 
         // Every endpoint is enabled by default, so the resolver has an address for the authorization endpoint
         var authorize = new UriBuilder(endpoints.Resolve(OidcEndpoints.Authorize)!)
@@ -80,7 +104,8 @@ public class AuthController : Controller
 </form>
 ```
 
-The form tag helper adds the antiforgery token that `[ValidateAntiForgeryToken]` checks; it needs
+The form tag helper adds the antiforgery token the handler checks, and a view returned again carries a fresh
+one; it needs
 `@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers` in `Views/_ViewImports.cshtml`, which a project made from
 the MVC template already has.
 
@@ -106,44 +131,35 @@ Before `builder.Build()`:
 builder.Services.AddAntiforgery();
 ```
 
-After `builder.Build()`. The antiforgery middleware goes after `app.UseRouting()` (and after
-`app.UseAuthentication()` if the application has it): placed anywhere else, or left out, it lets a post without
-the token through.
+After `builder.Build()`. The post endpoint checks the token itself and says so with `.DisableAntiforgery()`: a
+Minimal API endpoint that binds a form otherwise expects the antiforgery middleware and fails without it.
 
 ```csharp
-app.UseAntiforgery();
-
-app.MapGet("/Auth/Login", (HttpContext http, IAntiforgery antiforgery, [FromQuery(Name = "request_uri")] string requestUri) =>
-{
-    var token = antiforgery.GetAndStoreTokens(http);
-
-    // The path base carries the issuer's path when it has one, so the form posts inside the tenant
-    var action = System.Net.WebUtility.HtmlEncode($"{http.Request.PathBase}/Auth/Login");
-    var html = $"""
-        <form method="post" action="{action}">
-          <input type="hidden" name="{token.FormFieldName}" value="{token.RequestToken}">
-          <input type="hidden" name="request_uri" value="{System.Net.WebUtility.HtmlEncode(requestUri)}">
-          <input name="email" type="email" autocomplete="username" required>
-          <input name="password" type="password" autocomplete="current-password" required>
-          <button type="submit">Sign in</button>
-        </form>
-        """;
-    return Results.Content(html, "text/html");
-});
+app.MapGet("/Auth/Login", (HttpContext http, IAntiforgery antiforgery, [FromQuery(Name = "request_uri")] string? requestUri) =>
+    LoginPage(http, antiforgery, requestUri, error: null));
 
 app.MapPost("/Auth/Login", async (
-    [FromForm] string email,
-    [FromForm] string password,
-    [FromForm(Name = "request_uri")] string requestUri,
+    [FromForm] string? email,
+    [FromForm] string? password,
+    [FromForm(Name = "request_uri")] string? requestUri,
     HttpContext http,
+    IAntiforgery antiforgery,
     UserStore users,
     IAuthSessionService authSessions,
     ISessionIdGenerator sessionIds,
     IOidcEndpointResolver endpoints,
     TimeProvider clock) =>
 {
-    if (users.Authenticate(email, password) is not { } subject)
-        return Results.Redirect($"{http.Request.PathBase}/Auth/Login?request_uri={Uri.EscapeDataString(requestUri)}");
+    // A page on another site could submit this form with the attacker's own credentials: the victim's browser
+    // would be signed in as the attacker, and whatever the victim then authorizes or enters lands in the
+    // attacker's account. The antiforgery token the form carries is what such a page cannot supply. A form
+    // opened in another tab before signing in carries a token that no longer matches, so it is shown again.
+    if (!await antiforgery.IsRequestValidAsync(http))
+        return LoginPage(http, antiforgery, requestUri, "The sign-in form has expired, please sign in again");
+
+    if (string.IsNullOrEmpty(email) || string.IsNullOrEmpty(password) ||
+        users.Authenticate(email, password) is not { } subject)
+        return LoginPage(http, antiforgery, requestUri, "Invalid email or password");
 
     await authSessions.SignInAsync(new AuthSession(
         subject,
@@ -151,14 +167,43 @@ app.MapPost("/Auth/Login", async (
         clock.GetUtcNow(),
         CookieAuthenticationDefaults.AuthenticationScheme));
 
+    // A visit to the login page on its own carries no authorization request to resume
+    if (string.IsNullOrEmpty(requestUri))
+        return Results.Redirect($"{http.Request.PathBase}/");
+
     var authorize = new UriBuilder(endpoints.Resolve(OidcEndpoints.Authorize)!)
         { Query = { [AuthorizationRequest.Parameters.RequestUri] = requestUri } };
     return Results.Redirect(authorize);
-});
+})
+// The handler checks the antiforgery token itself, so an expired form gets the login page again rather than the
+// bare 400 the automatic check answers
+.DisableAntiforgery();
+
+// The form with a fresh antiforgery token, and the error of the previous attempt when there was one
+static IResult LoginPage(HttpContext http, IAntiforgery antiforgery, string? requestUri, string? error)
+{
+    var token = antiforgery.GetAndStoreTokens(http);
+    Func<string?, string?> encode = System.Net.WebUtility.HtmlEncode;
+
+    // The path base carries the issuer's path when it has one, so the form posts inside the tenant
+    var action = encode($"{http.Request.PathBase}/Auth/Login");
+    var message = error is null ? "" : $"<p>{encode(error)}</p>";
+    var html = $"""
+        <form method="post" action="{action}">
+          {message}
+          <input type="hidden" name="{encode(token.FormFieldName)}" value="{encode(token.RequestToken)}">
+          <input type="hidden" name="request_uri" value="{encode(requestUri ?? "")}">
+          <input name="email" type="email" autocomplete="username" required>
+          <input name="password" type="password" autocomplete="current-password" required>
+          <button type="submit">Sign in</button>
+        </form>
+        """;
+    return Results.Content(html, "text/html");
+}
 ```
 
 The page above is the smallest that works; an application with Razor Pages or its own front end renders the same
-form there. Whatever renders it must HTML-encode `request_uri` and carry the antiforgery token.
+form there. Whatever renders it must HTML-encode `request_uri` and carry a fresh antiforgery token.
 
 ## What the session may carry
 

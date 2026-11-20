@@ -1,8 +1,10 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
 using System.Text.Json;
+using Abblix.DependencyInjection;
 using Abblix.Jwt;
 using Abblix.Oidc;
+using Abblix.Oidc.Server.AspNetCore.Formatters;
 using Abblix.Oidc.Server.Common.Configuration;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Common.Interfaces;
@@ -12,12 +14,19 @@ using Abblix.Oidc.Server.Features.Consents;
 using Abblix.Oidc.Server.Features.MultiTenancy;
 using Abblix.Oidc.Server.Features.RandomGenerators;
 using Abblix.Oidc.Server.Features.UserInfo;
+#if (UseMvc)
 using Abblix.Oidc.Server.Mvc;
+#else
+using Abblix.Oidc.Server.MinimalApi;
+#endif
 using AspNetIdentitySample;
 using AspNetIdentitySample.OidcStore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
+#if (UseMvc)
+using Microsoft.AspNetCore.Mvc;
+#endif
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 
@@ -47,8 +56,16 @@ builder.Services.Configure<PasswordHasherOptions>(builder.Configuration.GetSecti
 // UserInfo answers invalid_token.
 builder.Services.AddScoped<IUserInfoProvider, IdentityUserInfoProvider>();
 
+#if (UseMvc)
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+#else
+// The Minimal API host has no MVC, so the services the pipeline relies on are registered directly
+builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+#endif
 
 // Grants every client everything it asks for, which suits this provider: its clients are all its own.
 // To ask the end user for consent, register your own IUserConsentsProvider instead.
@@ -82,6 +99,14 @@ static TenantDefinition DefineTenant(ClientInfo[] clients) => new()
 
 // Register and configure Abblix OIDC Server
 builder.Services.AddOidcServices(options => options.Tenants.Add(tenant));
+
+// The end-session endpoint leaves two pages to the host: the confirmation of a sign-out no client vouched for, and
+// the page shown when no client asked to be sent back. Registered after AddOidcServices, it wraps the library's own.
+#if (UseMvc)
+builder.Services.Decorate<IEndSessionResponseFormatter<ActionResult>, EndSessionPages>();
+#else
+builder.Services.Decorate<IEndSessionResponseFormatter<IResult>, EndSessionPages>();
+#endif
 
 // Token introspection (RFC 7662) is opt-in: this call registers the endpoint and advertises it in discovery.
 // A client authenticates to it with its own credentials, as requests.http does with console_client.
@@ -154,7 +179,9 @@ using (var scope = app.Services.CreateScope())
 
     var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 #if (HasSampleUser)
-    if (await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
+    // A development account with a login known from the template, so only a Development run creates it. Once
+    // created it stays in users.db, so a deployment starts from a users.db that never ran in Development
+    if (app.Environment.IsDevelopment() && await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
     {
         var user = new IdentityUser
         {
@@ -329,7 +356,11 @@ static ClientInfo[] ReadClients(IConfiguration configuration)
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
+#if (UseMvc)
     app.UseExceptionHandler("/Home/Error");
+#else
+    app.UseExceptionHandler(MinimalApiPages.ErrorPath);
+#endif
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -341,10 +372,19 @@ app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
 
+#if (UseMvc)
 // The library's controllers carry no routes of their own, so the default route below never reaches them
 app.MapOidcControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+#else
+// The Minimal API counterpart of the MVC host's app.MapOidcControllers()
+app.MapOidcEndpoints();
+app.MapHostPages();
+#endif
+
+// The relying party of test_client, so a browser can walk a whole sign-in on this project in Development
+app.MapDemoClient(ReadClients(app.Configuration));
 
 app.Run();

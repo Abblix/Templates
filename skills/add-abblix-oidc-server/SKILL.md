@@ -171,7 +171,7 @@ public sealed class AppUserInfoProvider(/* the application's user store */) : IU
 ```
 
 An application on ASP.NET Core Identity can start from the template's
-[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs),
+[IdentityUserInfoProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/IdentityUserInfoProvider.cs),
 replacing its namespace with the application's and `IdentityUser` with the application's user type (an
 application on `AddDefaultIdentity<ApplicationUser>` has no `UserManager<IdentityUser>`). Without any `IUserInfoProvider` the server falls back to one that knows no user: no ID token is issued
 and the userinfo endpoint answers `invalid_token`.
@@ -212,8 +212,9 @@ application's existing cookie (for example `SignInManager.PasswordSignInAsync`) 
 only the session that `IAuthSessionService.SignInAsync` writes.
 
 The MVC controller and view, and the Minimal API endpoints, are in
-[references/login-page.md](references/login-page.md). A Minimal API application needs `app.UseAntiforgery()`
-after `app.UseRouting()` for its login form: without it a post without the antiforgery token is accepted.
+[references/login-page.md](references/login-page.md). Both check the login form's antiforgery token inside the
+handler with `IAntiforgery.IsRequestValidAsync`, so a form from another site is refused and a form that expired in
+a second tab is shown again instead of a bare 400; the Minimal API endpoint marks this with `.DisableAntiforgery()`.
 
 An application that already has a login page can add the hand-off at the end of its successful sign-in instead
 of adding a second page (point `LoginUri` at it and carry `request_uri` through its form), but only when its own
@@ -251,7 +252,7 @@ default. Under `AddConsentGrantedForEveryClient()`, `ConsentRequired` is no safe
 
 Clients declared in `Clients` suit a fixed set the application owns. For clients registered at run time, the
 `abblix-oidc-server` template keeps them in a database through `ITenantClientRegistrationStore`, see its
-[DurableClientStore.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/OidcStore/DurableClientStore.cs).
+[DurableClientStore.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/DurableClientStore.cs).
 
 ## Step 6: a signing key that outlives a restart
 
@@ -288,7 +289,7 @@ openssl req -x509 -newkey rsa:2048 -sha256 -days 365 -nodes -subj "/CN=OIDC sign
 Keys kept in the application's database, encrypted with ASP.NET Core Data Protection, as the
 `abblix-oidc-server` template does: an `IAuthServiceKeysProvider` registered after `AddOidcServices`, which then
 replaces the server's own, and the tenant declares no `SigningKeys`. Its
-[DatabaseKeysProvider.cs](https://github.com/Abblix/Templates/blob/release/3.0/OpenIDProviderIdentityTemplate/OidcStore/DatabaseKeysProvider.cs)
+[DatabaseKeysProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/DatabaseKeysProvider.cs)
 and the seeding in its `Program.cs` can be copied.
 
 Keys held by HashiCorp Vault, OpenBao or Azure Key Vault, through the `Abblix.JWT.Vault` or `Abblix.JWT.Azure`

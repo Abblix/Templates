@@ -4,6 +4,7 @@
     "classifications": [
         "Web",
         "MVC",
+        "Minimal API",
         "OpenID",
         "OIDC",
         "OAuth2.0",
@@ -27,6 +28,24 @@
     },
     "preferNameDirectory": true,
     "symbols": {
+        "host": {
+            "type": "parameter",
+            "datatype": "choice",
+            "choices": [
+                { "choice": "minimal", "description": "Minimal API: the OpenID endpoints, the login page and the other pages are mapped as endpoints, with no MVC controllers or Razor views." },
+                { "choice": "mvc", "description": "ASP.NET Core MVC: the OpenID endpoints are MVC controllers, and the login page and the other pages are controllers with Razor views." }
+            ],
+            "defaultValue": "minimal",
+            "description": "How the host serves the OpenID endpoints and its own pages."
+        },
+        "UseMvc": {
+            "type": "computed",
+            "value": "(host == \"mvc\")"
+        },
+        "UseMinimalApi": {
+            "type": "computed",
+            "value": "(host == \"minimal\")"
+        },
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
@@ -53,14 +72,14 @@
         "user": {
             "type": "parameter",
             "datatype": "string",
-            "defaultValue": "",
-            "description": "Email address of a dev sample user to pre-seed into the Identity store; it is also the login, so it takes the characters Identity accepts in a user name: Latin letters, digits and -._@+. Any other value stops the first run with Identity's error. If omitted, no sample user is created."
+            "defaultValue": "demo@example.com",
+            "description": "Email address of the dev sample user seeded into the Identity store on the first run in Development; it is also the login, so it takes the characters Identity accepts in a user name: Latin letters, digits and -._@+. Any other value stops the first run with Identity's error. Pass an empty value for no user."
         },
         "password": {
             "type": "parameter",
             "datatype": "string",
             "defaultValue": "",
-            "description": "Password for the --user sample account. If omitted, a random one is generated and printed once on first run. Ignored when --user is omitted."
+            "description": "Password for the --user sample account. If omitted, a random one is generated and printed once on the first run in Development. Ignored when --user is empty."
         },
         "userInCSharp": {
             "type": "derived",
@@ -139,6 +158,16 @@
                 "wwwroot/lib/**",
                 "**/*.db",
                 "dataprotection-keys/**"
+            ],
+            "modifiers": [
+                {
+                    "condition": "(UseMinimalApi)",
+                    "exclude": [ "Controllers/**", "Views/**", "Models/**" ]
+                },
+                {
+                    "condition": "(UseMvc)",
+                    "exclude": [ "MinimalApiPages.cs" ]
+                }
             ]
         }
     ]

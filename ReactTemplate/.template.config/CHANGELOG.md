@@ -6,10 +6,11 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Upgrading a project created from 2.x
 
+- Breaking: the short name `react-dotnet` replaces `react-net10`, which 2.x listed among its aliases and which names no .NET version any more. A script that runs `dotnet new react-net10` stops finding the template; it runs `dotnet new react-dotnet` or `dotnet new abblix-react` instead.
 - Linting moves from ESLint to oxlint: `npm run lint` runs `oxlint` with the React plugin enabled in `.oxlintrc.json`, and `eslint.config.js` and the ESLint packages are gone.
-- The front-end dependencies move to TypeScript 7.0, Vite 8.3.8, `@vitejs/plugin-react` 6 and React 19.2.7. The host still targets .NET 10 and references Microsoft.AspNetCore.SpaProxy 10.0.9, up from 10.0.3.
+- The front-end dependencies move to TypeScript 7.0, Vite 8.3.8, `@vitejs/plugin-react` 6 and React 19.3.1. The host targets .NET 11 and references Microsoft.AspNetCore.SpaProxy 11.0.0, up from .NET 10 and 10.0.3, so it builds and runs on the .NET 11 SDK alone.
 - `vite.config.ts` exports and reads the ASP.NET Core development certificate only when serving (the dev server or `vite preview`), never when building, so `npm run build` no longer needs `dotnet dev-certs` or the exported PEM files. In 2.x every config load read the certificate files, exporting them first when they were missing, so a build where the export failed, such as on a build agent without the .NET SDK, failed with it.
-- `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. A Debug build installs the packages when `ClientApp/node_modules` is missing, and a publish installs and builds them, as before.
+- `dotnet new` no longer runs `npm install` after creating the project, so it no longer asks for permission to run a script. A Debug build and a publish install the packages with `npm ci`, exactly as `ClientApp/package-lock.json` records them, whenever that lock is newer than the last install, and a publish then builds them. In 2.x both ran `npm install`, a Debug build only when `ClientApp/node_modules` was missing. A Release build still needs no Node.js.
 
 ### Added
 
@@ -27,7 +28,9 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Fixed
 
-- The short names `react-net10`, `react-typescript` and `react-vite` create a project. 2.x listed them under `aliases`, a property the template engine does not read, so only `abblix-react` found the template.
+- A path under `/api` that the host does not map answers 404. In 2.x it answered with the SPA's `index.html`, so a client calling a missing endpoint received a page instead of an error.
+- In Development a deep link opened on the host, such as `/about`, is redirected to the same path on the Vite dev server. In 2.x only the root was, and any other path answered 404.
+- The short names `react-dotnet`, `react-typescript` and `react-vite` create a project. 2.x listed them under `aliases`, a property the template engine does not read, so only `abblix-react` found the template.
 - A new project no longer receives a prebuilt `ClientApp/dist` from the package; 2.0.0 and 2.0.1 shipped one it never needed.
 
 ### Security
@@ -47,7 +50,7 @@ What changed in the project that the ReactTemplate creates, version by version. 
 - The front end moves to React 19, Vite 6 and ESLint 9 with the flat configuration in `eslint.config.js`, which replaces `.eslintrc.cjs`.
 - The unused `react-router-dom` dependency is removed.
 - Publishing takes the Vite output from `ClientApp/dist` instead of `ClientApp/build`.
-- The name listed under `aliases` changes from `react-net8` to `react-net10`. The template engine read neither; 3.0.0 makes `react-net10` a short name that works.
+- The name listed under `aliases` changes from `react-net8` to `react-net10`. The template engine read neither; 3.0.0 replaces both with the short name `react-dotnet`.
 
 ## 1.2.0 - 2025-08-14
 

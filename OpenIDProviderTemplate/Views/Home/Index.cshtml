@@ -1,12 +1,17 @@
 ﻿@{
     ViewData["Title"] = "Home Page";
 }
+@inject IWebHostEnvironment Environment
 
 <div class="container-sm">
     <div class="text-center">
         <h1 class="display-4 m-5">Welcome to Abblix OIDC Server</h1>
     </div>
     <div class="text-left">
+        @if (Environment.IsDevelopment())
+        {
+            <p><a class="btn btn-primary" href="@DemoClient.StartPath">Sign in with the demo client</a></p>
+        }
         <p>
             This sample project is powered by the <strong>Abblix OIDC Server</strong> library that implements
             the OpenID Connect and OAuth 2.0 protocols on the server side.

@@ -49,7 +49,7 @@ Abblix OIDC Server is a .NET library designed to provide comprehensive support f
 - Testability: Improved separation of concerns makes the code more testable.
 - Maintainability: Clear structure and separation facilitate better management of the codebase.
 
-The library also supports Dependency Injection through the standard .NET DI container, aiding in the organization and management of code. Specifically tailored for seamless integration with ASP.NET WebApi, Abblix OIDC Server employs standard controller classes, binding, and routing mechanisms, simplifying the integration of OpenID Connect into your services.
+The library also supports Dependency Injection through the standard .NET DI container, aiding in the organization and management of code. It plugs into ASP.NET Core either as Minimal API endpoints or as MVC controllers, with the standard binding and routing of each.
 
 ## 📋 Prerequisites
 
@@ -94,11 +94,10 @@ You create a new project from this template by its short name, `abblix-oidc-serv
 ```shell
 # Creates a new project from this template
 # The '-n MyOpenIDProvider' specifies the name of the new project folder
-# The '--user alice@example.com' adds a user to sign in with on the login page
-dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider --user alice@example.com
+dotnet new abblix-oidc-server-gettingstarted -n MyOpenIDProvider
 ```
 
-`--user` adds a development user to the in-memory store, signing in with the login you give: an email address or any other text on one line. `--password` sets its password, `Passw0rd!` by default. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
+`--host` picks the host style: `minimal`, the default, maps the OpenID endpoints and the host's pages as Minimal API endpoints; `mvc` serves them as MVC controllers and Razor views. Both share the settings, the clients, the user store, the demo client and the sign-out pages. `--user` sets the login of the development user the in-memory store holds in Development, `demo@example.com` by default, and `--password` its password; without `--password`, one is generated at every start and printed on the console. `dotnet new abblix-oidc-server-gettingstarted -h` lists every option.
 
 The short name `abblix-oidc-server` belongs to the other OpenID Provider template in the same package, which keeps users in ASP.NET Core Identity and stores the signing key and client registrations in SQLite. Start a real project from that one.
 
@@ -108,27 +107,29 @@ Understanding the structure of your project is crucial for effective development
 
 ```
 /MyOpenIDProvider
-├── Controllers/
-│   └── ...
-├── Models/
-│   └── ...
-├── Views/
-│   └── ...
+├── Controllers/        (MVC only)
+├── Models/             (MVC only)
+├── Views/              (MVC only)
 ├── wwwroot/
-│   └── ...
 ├── Properties/
 │   └── launchSettings.json
 ├── appsettings.json
 ├── appsettings.Development.json
+├── DemoClient.cs
+├── EndSessionPages.cs
+├── MinimalApiPages.cs  (Minimal API only)
 ├── MyOpenIDProvider.csproj
+├── Pages.cs
 ├── Program.cs
 ├── requests.http
 └── TestUserStorage.cs
 ```
 
-- Controllers/: Contains API controllers.
-- Models/: Contains the data models and classes used throughout the application.
-- Views/: Razor views for rendering HTML responses and UI components.
+- Controllers/, Models/, Views/: the MVC host's login and home pages, as controllers and Razor views.
+- MinimalApiPages.cs: the Minimal API host's home, error and login pages.
+- DemoClient.cs: the pages of the demo client test_client, served in Development so a browser can walk a whole sign-in.
+- EndSessionPages.cs: the pages the end-session endpoint leaves to the host, confirming a sign-out and telling the user they are signed out.
+- Pages.cs: the frame of the pages rendered as plain HTML.
 - wwwroot/: Contains static files like JavaScript, CSS, and images that are served directly by the web server.
 - Properties/: Contains project settings files, including `launchSettings.json`.
 - appsettings.json: Configuration settings for the application.
@@ -140,7 +141,7 @@ Understanding the structure of your project is crucial for effective development
 
 ## 🔧 Configuration
 
-The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, the clients read from the `Oidc:Clients` configuration section, and commented-out scopes and resources to fill in. Token introspection is switched on by `AddIntrospection()` next to it. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` holds only the logging and host filtering settings and declares no client. `appsettings.Development.json` declares two, both with the secret `secret`, published with this template: `test_client`, for the authorization code flow with PKCE and the loopback redirect URI `http://127.0.0.1/callback`, which accepts any port, and `console_client`, for the client credentials grant only, which may get no token for a registered API. A host started outside Development has no client at all. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
+The provider is configured in `Program.cs`, on the tenant passed to `AddOidcServices`: the issuer, the login page, the signing key, the clients read from the `Oidc:Clients` configuration section, and commented-out scopes and resources to fill in. Token introspection is switched on by `AddIntrospection()` next to it. Abblix OIDC Server 3.0 keeps these per issuer, so they live on the tenant rather than on the server options. The issuer is `https://localhost:5001`. Its port was chosen when the project was created: the one given with `--https-port`, or a free port the template picked. `appsettings.json` holds only the logging and host filtering settings and declares no client. `appsettings.Development.json` declares two, both with the secret `secret`, published with this template: `test_client`, for the authorization code flow with PKCE and refresh tokens, redirecting to the demo client's pages in this project, and `console_client`, for the client credentials grant only, which may get no token for a registered API. A host started outside Development has no client at all. The server answers at whatever host name a request arrives with and builds the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` to the issuer's host name instead of `*`.
 
 Configuring and connecting clients to your Abblix OIDC Server is a crucial step in setting up your identity provider. This process involves defining client credentials, configuring allowed grant types, setting up redirect URIs, and more. Each client must be properly configured to securely interact with your OpenID Connect server, ensuring that only authorized applications can request tokens and access user data.
 
@@ -166,13 +167,19 @@ dotnet run
 
 You can access the application in your browser at `https://localhost:5001`, and its discovery document at `https://localhost:5001/.well-known/openid-configuration`.
 
-With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port. The file then walks through a sign-in as `test_client`: an authorization address to open in a browser, the login page, where the user created with `--user` signs in (`alice@example.com` and `Passw0rd!` for the command above), and the exchange of the code for tokens.
+With the provider running, open `requests.http` in Visual Studio, JetBrains Rider or VS Code (REST Client extension) and send its requests in turn: the discovery document, the published keys, an access token for `console_client` from the client credentials grant, and introspection of that token. They need no client application, and their address follows the project's port.
+
+<!--#if (HasSampleUser) -->
+To sign in, open `https://localhost:5001/` and choose "Sign in with the demo client": the login page takes `SAMPLE_USER_LOGIN` and its password, the one given to `dotnet new` with `--password` or, without it, the one the console printed at startup. The demo client's page then shows the code with its PKCE verifier and a sign-out button, and `requests.http` exchanges the code for tokens, reads the user's claims and refreshes the tokens.
+<!--#else -->
+This project was created with no sample user (`--user ""`), so nobody can sign in yet: add a `UserInfo` to the `TestUserStorage` in `Program.cs`, then open `https://localhost:5001/` and choose "Sign in with the demo client".
+<!--#endif -->
 
 ## 🎨 Customization
 
 You can extend or modify the template by:
 
-- Adding new controllers and views.
+- Adding pages of your own, as endpoints or as controllers and views.
 - Integrating with a real user store or identity provider.
 - Configuring additional authentication methods.
 

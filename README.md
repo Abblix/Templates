@@ -1,6 +1,6 @@
 <a name="top"></a>
 [![Abblix Templates](https://resources.abblix.com/imgs/jpg/templates-github-banner.jpg)](https://github.com/Abblix/Templates)
-[![.NET](https://img.shields.io/badge/.NET-10.0%2C%2011.0-512BD4)](#)
+[![.NET](https://img.shields.io/badge/.NET-11.0-512BD4)](#)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
 [![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](#)
 [![CPU](https://img.shields.io/badge/CPU-x86%2C%20x64%2C%20ARM%2C%20ARM64-FF8C00)](#)
@@ -30,10 +30,10 @@
 
 Abblix ASP.NET Core Templates includes three templates designed to simplify and accelerate your development process. These templates provide a solid foundation for building modern web applications and identity providers with ASP.NET Core.
 
-- [ASP.NET Core WebAPI with React and Vite Template](https://github.com/Abblix/Templates/tree/master/ReactTemplate) (`abblix-react`):
-This template serves as a starting point for creating an ASP.NET Core WebAPI project combined with a React frontend using TypeScript and Vite. It establishes a fundamental project structure and essential configurations, enabling developers to kickstart their applications swiftly.
+- [ASP.NET Core MVC with React and Vite](https://github.com/Abblix/Templates/tree/master/ReactTemplate) (`abblix-react`):
+An ASP.NET Core MVC host with a React single-page app written in TypeScript and built by Vite. In development the host starts the Vite dev server, which forwards `/api` calls to the host; a published app serves the built pages from `wwwroot`.
 - OpenID Connect Provider Templates:
-Two templates for building an OpenID Connect Provider using ASP.NET Core in conjunction with Abblix OIDC Server 3.0. Both serve the OpenID endpoints at whatever host name a request arrives with and build the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of the `*` they ship with.
+Two templates for building an OpenID Connect Provider using ASP.NET Core in conjunction with Abblix OIDC Server 3.0. Each generates a Minimal API host by default and an MVC host with `--host mvc`; both styles share the settings and clients, and a new project of either signs a user in through its own demo client in Development. Both serve the OpenID endpoints at whatever host name a request arrives with and build the endpoint addresses in the discovery document from it, so before deploying set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of the `*` they ship with.
   - `abblix-oidc-server` ([OpenIDProviderIdentityTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderIdentityTemplate)): the starting point for a real project. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the signing key and client registrations are stored in SQLite as well, so a restart keeps them.
   - `abblix-oidc-server-gettingstarted` ([OpenIDProviderTemplate](https://github.com/Abblix/Templates/tree/master/OpenIDProviderTemplate)): a minimal provider for learning, with an in-memory user store, clients declared in `appsettings.Development.json` under `Oidc:Clients` and a signing key generated at every startup. Its build warnings mark the in-memory user store, the generated signing key and the in-memory cache as choices to replace before production.
 
@@ -57,7 +57,7 @@ Each template keeps a changelog of its own, so anyone who created a project from
 
 Before you begin using the Abblix ASP.NET Core Templates, ensure that your development environment is properly set up with the following tools:
 
-- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. The OpenID Connect Provider templates target .NET 11; the React template targets .NET 10, which the .NET 11 SDK builds as well, and runs on the [ASP.NET Core 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0), installed beside it.
+- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. All three templates target .NET 11.
 - [Node.js and npm](https://nodejs.org/): Node.js is required to manage the frontend dependencies for projects using React and Vite. npm (Node Package Manager) comes bundled with Node.js and is used to install and manage these dependencies. Having Node.js and npm installed ensures that you can seamlessly integrate and build the frontend parts of your application, especially when using modern JavaScript frameworks and tools like React and Vite.
 
 ## 📝 Installing the Templates
