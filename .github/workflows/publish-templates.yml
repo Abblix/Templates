@@ -4,14 +4,14 @@ name: Publish templates to NuGet and the Visual Studio Marketplace
 # that carries the same package to the Visual Studio Marketplace.
 # The package version is set explicitly by <PackageVersion> in
 # Abblix.Templates.csproj (no MinVer here) - bump it there before running.
-# NuGet.org rejects re-upload of an existing version; --skip-duplicate keeps a
-# re-run idempotent rather than failing. The Marketplace replaces an extension of the same version,
-# so a re-run publishes the same extension again.
+# NuGet.org never replaces a version, so when the version is already published the run carries
+# the package NuGet.org serves instead of the fresh pack and skips the NuGet.org job; a template
+# change therefore reaches neither registry until PackageVersion moves. The Marketplace replaces an
+# extension of the same version, so a re-run publishes the same extension again.
 #
-# One package for both: the pack job builds the .nupkg once and records its SHA-256, and the
-# NuGet.org job and the extension build download it and refuse a file with any other digest, so
-# within a run NuGet.org and the extension carry the same templates. A dry run packs the package
-# and builds the extension without an approval.
+# One package for both: the pack job records the SHA-256 of the package the run carries, and the
+# NuGet.org job and the extension build download it and refuse a file with any other digest. A dry
+# run packs the package and builds the extension without an approval.
 
 on:
   workflow_dispatch:
@@ -97,7 +97,8 @@ jobs:
               rm nupkg/*.nupkg
               mv published.nupkg "nupkg/Abblix.Templates.${version}.nupkg"
               echo "on_nuget=true" >> "$GITHUB_OUTPUT"
-              echo "Abblix.Templates $version is already on NuGet.org: the release carries the published package"
+              echo "::notice title=NuGet.org::Abblix.Templates $version is already on NuGet.org: this run carries the published package and does not push to NuGet.org"
+              echo "Abblix.Templates $version is already on NuGet.org: this run carries the published package and does not push to NuGet.org." >> "$GITHUB_STEP_SUMMARY"
               ;;
             404)
               rm -f published.nupkg
@@ -563,7 +564,7 @@ jobs:
 
           & $env:VSIX_PUBLISHER publish -payload $env:VSIX_PATH -publishManifest $manifestPath -personalAccessToken $credential
           if ($LASTEXITCODE -ne 0) {
-            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher refused the extension; its log above names the reason. Skipped step: when it names the publisher or the token, fix them on https://marketplace.visualstudio.com/manage and re-run the failed job. When it names the extension itself (manifest, overview, categories), fix the files under Vsix/, merge the fix into master and dispatch anew from master; if anything outside Vsix/ changed on master since this run, raise PackageVersion first, since NuGet.org keeps the package it already has and the extension would carry different templates under the same version"
+            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher refused the extension; its log above names the reason. Skipped step: when it names the publisher or the token, fix them on https://marketplace.visualstudio.com/manage and re-run the failed job. When it names the extension itself (manifest, overview, categories), fix the files under Vsix/, merge the fix into master and dispatch anew from master; the new run carries the package NuGet.org already holds for this version, so a template change made since then needs PackageVersion raised to be released at all"
             exit $LASTEXITCODE
           }
           @('', 'Published to the Visual Studio Marketplace.') |
