@@ -2,7 +2,7 @@
 
 Three project templates for the Visual Studio New Project dialog. Two of them create an OpenID Provider on ASP.NET Core and Abblix OIDC Server; the third creates an ASP.NET Core host with a React application. Search the dialog for the template's name.
 
-This extension carries the same template package that `dotnet new install Abblix.Templates` installs from nuget.org, at the same version, so a project created here matches one created on the command line.
+This extension carries the same templates that `dotnet new install Abblix.Templates` installs from nuget.org, at the same version, so a project created here matches one created on the command line.
 
 All three projects target .NET 11, so the .NET 11 SDK has to be installed.
 
@@ -26,7 +26,7 @@ Options in the dialog:
 
 - Host style: a Minimal API host (the default) or an MVC host.
 - HTTPS port: the port the provider is served on, which goes into its issuer address. Leave it at 0 to have a free port picked when the project is created.
-- Sample user email and Sample user password: the in-memory development user. Without a password, one is generated at every start and printed on the console.
+- Sample user login and Sample user password: the in-memory development user. Without a password, one is generated at every start and printed on the console.
 
 Documentation: [abblix-oidc-server-gettingstarted](https://github.com/Abblix/Templates/blob/master/docs/abblix-oidc-server-gettingstarted.md)
 

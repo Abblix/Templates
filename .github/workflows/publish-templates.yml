@@ -10,8 +10,11 @@ name: Publish templates to NuGet and the Visual Studio Marketplace
 # extension of the same version, so a re-run publishes the same extension again.
 #
 # One package for both: the pack job records the SHA-256 of the package the run carries, and the
-# NuGet.org job and the extension build download it and refuse a file with any other digest. A dry
-# run packs the package and builds the extension without an approval.
+# NuGet.org job and the extension build download it and refuse a file with any other digest. For a
+# version already on NuGet.org that file is the one NuGet.org serves; for a new version NuGet.org
+# adds its repository signature on upload, so the extension carries the same templates in a file
+# that differs from the served one by that signature. A dry run packs the package and builds the
+# extension without an approval.
 
 on:
   workflow_dispatch:
@@ -34,6 +37,7 @@ concurrency:
 jobs:
   pack:
     name: Pack Abblix.Templates
+    # Every job of a public repository runs on a GitHub-hosted runner.
     runs-on: ubuntu-latest
     timeout-minutes: 5
     permissions:
@@ -67,8 +71,9 @@ jobs:
         timeout-minutes: 3
 
       # NuGet.org never replaces a version, so when this version is already published the release
-      # carries the published file rather than the fresh pack: the extension then holds the bytes
-      # NuGet.org serves, and the NuGet.org job, which has nothing to push, does not run.
+      # carries the published file rather than the fresh pack: the extension then holds the file
+      # NuGet.org serves, signature included, and the NuGet.org job, which has nothing to push,
+      # does not run.
       - name: Take the published package when this version is on NuGet.org
         id: published
         run: |
@@ -156,6 +161,7 @@ jobs:
     needs: [pack, extension]
     # A version already on NuGet.org has nothing to push.
     if: ${{ !inputs.dry_run && needs.pack.outputs.on_nuget != 'true' }}
+    # Every job of a public repository runs on a GitHub-hosted runner.
     runs-on: ubuntu-latest
     # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
     # key exchange needs lives in this environment.
@@ -243,8 +249,7 @@ jobs:
             echo "Publishing $(basename "$pkg") to nuget.org..."
             dotnet nuget push "$pkg" \
               --api-key "$NUGET_API_KEY" \
-              --source https://api.nuget.org/v3/index.json \
-              --skip-duplicate
+              --source https://api.nuget.org/v3/index.json
           done
         timeout-minutes: 5
 
@@ -279,11 +284,11 @@ jobs:
   extension:
     name: Build the Visual Studio extension
     needs: pack
-    # A job that needs Windows runs on a GitHub-hosted Windows runner: the Visual Studio SDK that
-    # builds the VSIX runs VsixUtil.exe, which exists only for Windows.
+    # Every job of a public repository runs on a GitHub-hosted runner; this one on Windows, because
+    # the Visual Studio SDK that builds the VSIX runs VsixUtil.exe, which exists only for Windows.
     runs-on: windows-latest
-    # 10m override on the 5m baseline: a Windows runner sets up slower than a Linux one.
-    timeout-minutes: 10
+    # The 5m baseline: the dry run measured 65 s for the whole job, the build 30 s of it.
+    timeout-minutes: 5
     permissions:
       contents: read
     outputs:
@@ -387,15 +392,21 @@ jobs:
   # policy names this repository, this workflow file and the publish-packages environment.
   marketplace:
     name: Publish the Visual Studio extension
-    needs: [pack, extension]
-    if: ${{ !inputs.dry_run }}
-    # A job that needs Windows runs on a GitHub-hosted Windows runner: VsixPublisher.exe, which
-    # publishes the extension, is a .NET Framework program that exists only for Windows.
+    # Publishes only after NuGet.org took the package, or when NuGet.org already had this version
+    # and the NuGet.org job was skipped for that reason, so the extension never ships templates
+    # NuGet.org does not hold.
+    needs: [pack, extension, nuget]
+    if: >-
+      ${{ !cancelled() && !inputs.dry_run && needs.extension.result == 'success' &&
+      (needs.nuget.result == 'success' ||
+      (needs.nuget.result == 'skipped' && needs.pack.outputs.on_nuget == 'true')) }}
+    # Every job of a public repository runs on a GitHub-hosted runner; this one on Windows, because
+    # VsixPublisher.exe, which publishes the extension, is a .NET Framework program.
     runs-on: windows-latest
     # The run waits for a reviewer's approval before any step starts.
     environment: publish-packages
-    # 10m override on the 5m baseline: a Windows runner sets up slower, and the job talks to the
-    # Marketplace twice (token exchange, upload).
+    # 10m override on the 5m baseline, not yet measured: the job sets up like the 65 s build job and
+    # then waits on the Marketplace twice (token exchange, upload and its validation).
     timeout-minutes: 10
     permissions:
       contents: read
@@ -504,17 +515,11 @@ jobs:
           "VSIX_PATH=$($files[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
         timeout-minutes: 3
 
-      - name: Attest build provenance
-        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
-        with:
-          subject-path: 'extension/*.vsix'
-        timeout-minutes: 3
-
       # VsixPublisher's own -oidc exchange is rejected by the Marketplace (it sends no api-version),
       # so this step makes the exchange with the contract vsce uses and hands the 15-minute
       # credential to VsixPublisher as its token. The GitHub token and the credential stay inside
-      # this one step and are masked before anything could print them. Every failure writes its
-      # own annotation naming the step to redo.
+      # this one step and are masked before anything could print them. Every failure writes one
+      # annotation naming the step to redo.
       - name: Publish to the Visual Studio Marketplace
         run: |
           $ErrorActionPreference = 'Stop'
@@ -530,10 +535,15 @@ jobs:
             exit 1
           }
           $tokenUri = "$($env:ACTIONS_ID_TOKEN_REQUEST_URL)&audience=marketplace.visualstudio.com"
-          $githubToken = (Invoke-RestMethod -Method Get -Uri $tokenUri -Headers @{
-              Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)"
-              Accept = 'application/json'
-            }).value
+          try {
+            $githubToken = (Invoke-RestMethod -Method Get -Uri $tokenUri -Headers @{
+                Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)"
+                Accept = 'application/json'
+              }).value
+          } catch {
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::GitHub refused this job an OIDC token ($($_.Exception.Message)). Skipped step: none; re-run the failed job"
+            exit 1
+          }
           if (-not $githubToken) {
             Write-Output "::error title=Visual Studio Marketplace trusted publishing::GitHub returned no OIDC token for this job"
             exit 1
@@ -552,6 +562,10 @@ jobs:
             # holds one line, so the message is taken from it rather than the whole body.
             $reason = $_.ErrorDetails.Message
             try { $reason = ($reason | ConvertFrom-Json).message } catch { $reason = "$reason" -replace '\s+', ' ' }
+            if ($null -eq $status) {
+              Write-Output "::error title=Visual Studio Marketplace::The Marketplace could not be reached for the token exchange ($($_.Exception.Message)). Skipped step: none; re-run the failed job"
+              exit 1
+            }
             Write-Output "::error title=Visual Studio Marketplace trusted publishing::The Marketplace issued no credential for this run (HTTP $status): $reason Skipped step: on https://marketplace.visualstudio.com/manage open the publisher $publisherName, select Trusted Publishing and check the policy names repository owner Abblix, repository Templates, workflow publish-templates.yml and environment publish-packages and is active; then re-run the failed job, or dispatch the workflow anew when the run is older than the three days its artifacts are kept"
             exit 1
           }
@@ -570,3 +584,11 @@ jobs:
           @('', 'Published to the Visual Studio Marketplace.') |
             Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
         timeout-minutes: 5
+
+      # After the publish, so a refused exchange or upload leaves no attestation for an extension
+      # the Marketplace never received.
+      - name: Attest build provenance
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: 'extension/*.vsix'
+        timeout-minutes: 3
