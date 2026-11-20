@@ -15,9 +15,9 @@
     "identity": "Abblix.ReactTemplate",
     "sourceName": "ReactTemplate",
     "defaultName": "ReactApp",
-    "shortName": "abblix-react",
-    "aliases": [
-        "react-net10",
+    "shortName": [
+        "abblix-react",
+        "react-dotnet",
         "react-typescript",
         "react-vite"
     ],
@@ -30,16 +30,48 @@
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
-            "defaultValue": "5000",
-            "replaces": "5000",
-            "description": "Port for the ASP.NET Core host HTTPS endpoint in launchSettings.json."
+            "description": "HTTPS port the ASP.NET Core host is served on. When omitted or 0, a port free on this machine is picked at random between 7000 and 7300 as the project is created."
+        },
+        "HttpsPortGenerated": {
+            "type": "generated",
+            "generator": "port",
+            "parameters": {
+                "low": 7000,
+                "high": 7300
+            }
+        },
+        "HttpsPortReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "HttpsPort",
+                "fallbackVariableName": "HttpsPortGenerated",
+                "defaultValue": "0"
+            },
+            "replaces": "5000"
         },
         "SpaProxyPort": {
             "type": "parameter",
             "datatype": "integer",
-            "defaultValue": "3000",
-            "replaces": "3000",
-            "description": "Port for the Vite dev server that SpaProxy connects to (SpaProxyServerUrl and vite.config.ts)."
+            "description": "Port of the Vite dev server the host starts during development. When omitted or 0, a port free on this machine is picked at random between 5173 and 5273 as the project is created."
+        },
+        "SpaProxyPortGenerated": {
+            "type": "generated",
+            "generator": "port",
+            "parameters": {
+                "low": 5173,
+                "high": 5273
+            }
+        },
+        "SpaProxyPortReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "SpaProxyPort",
+                "fallbackVariableName": "SpaProxyPortGenerated",
+                "defaultValue": "0"
+            },
+            "replaces": "3000"
         }
     },
     "sources": [

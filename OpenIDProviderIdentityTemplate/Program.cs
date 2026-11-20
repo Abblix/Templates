@@ -1,20 +1,34 @@
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Text;
 using System.Text.Json;
 using Abblix.DependencyInjection;
 using Abblix.Jwt;
+using Abblix.Oidc;
+using Abblix.Oidc.Server.AspNetCore.Formatters;
+using Abblix.Oidc.Server.Common.Configuration;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Common.Interfaces;
+using Abblix.Oidc.Server.Features;
 using Abblix.Oidc.Server.Features.ClientInformation;
+using Abblix.Oidc.Server.Features.Consents;
+using Abblix.Oidc.Server.Features.MultiTenancy;
+using Abblix.Oidc.Server.Features.RandomGenerators;
 using Abblix.Oidc.Server.Features.UserInfo;
+#if (UseMvc)
 using Abblix.Oidc.Server.Mvc;
+#else
+using Abblix.Oidc.Server.MinimalApi;
+#endif
 using AspNetIdentitySample;
 using AspNetIdentitySample.OidcStore;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Identity;
+#if (UseMvc)
+using Microsoft.AspNetCore.Mvc;
+#endif
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -38,25 +52,65 @@ builder.Services
 // algorithm without a recompile.
 builder.Services.Configure<PasswordHasherOptions>(builder.Configuration.GetSection("PasswordHasher"));
 
-// The library ships no IUserInfoProvider: this registration is mandatory, not optional.
+// Without this registration the server falls back to a stand-in that knows no user: no ID token is issued and
+// UserInfo answers invalid_token.
 builder.Services.AddScoped<IUserInfoProvider, IdentityUserInfoProvider>();
 
+#if (UseMvc)
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+#else
+// The Minimal API host has no MVC, so the services the pipeline relies on are registered directly
+builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+#endif
 
-// Register and configure Abblix OIDC Server
-builder.Services.AddOidcServices(options =>
+// Grants every client everything it asks for, which suits this provider: its clients are all its own.
+// To ask the end user for consent, register your own IUserConsentsProvider instead.
+builder.Services.AddConsentGrantedForEveryClient();
+
+// The one issuer this provider serves. The seeding below writes the signing key and the configured clients
+// under this tenant's id, so the same definition is handed to the server and kept for the seeding.
+var tenant = DefineTenant([]);
+
+// The tenant with the given clients declared on it. The server is handed it with none, since its clients live in
+// the durable store below; the seeding judges the configured clients by declaring them on this same definition.
+static TenantDefinition DefineTenant(ClientInfo[] clients) => new()
 {
-    options.Resources =
+    Id = "main",
+
+    // The address the app is served on, written into every token it issues
+    Issuer = new Uri("https://localhost:5001"),
+
+    Resources =
     [
         new ResourceDefinition(new Uri("https://localhost:5004", UriKind.Absolute), new ScopeDefinition("weather")),
-    ];
-    options.LoginUri = new Uri("/Auth/Login", UriKind.Relative);
+    ],
+    LoginUri = new Uri("/Auth/Login", UriKind.Relative),
 
-    // SigningKeys and Clients are deliberately NOT set here. They come from the SQLite-backed
-    // providers registered below, so they outlive a restart. A first-party client could still be
-    // declared in options.Clients and would win on read (see LayeredClientInfoProvider).
-});
+    // SigningKeys are deliberately NOT set here, and Clients only for that judgement. Both come from the
+    // SQLite-backed stores registered below, so they outlive a restart. A first-party client could still be
+    // declared on the tenant handed to the server, as the argument of DefineTenant above: the server serves those
+    // ahead of any stored registration under the same id.
+    Clients = clients,
+};
+
+// Register and configure Abblix OIDC Server
+builder.Services.AddOidcServices(options => options.Tenants.Add(tenant));
+
+// The end-session endpoint leaves two pages to the host: the confirmation of a sign-out no client vouched for, and
+// the page shown when no client asked to be sent back. Registered after AddOidcServices, it wraps the library's own.
+#if (UseMvc)
+builder.Services.Decorate<IEndSessionResponseFormatter<ActionResult>, EndSessionPages>();
+#else
+builder.Services.Decorate<IEndSessionResponseFormatter<IResult>, EndSessionPages>();
+#endif
+
+// Token introspection (RFC 7662) is opt-in: this call registers the endpoint and advertises it in discovery.
+// A client authenticates to it with its own credentials, as requests.http does with console_client.
+builder.Services.AddIntrospection();
 
 // Durable OIDC state (signing keys and client registrations) lives in SQLite so a restart neither
 // invalidates issued tokens nor forgets registered clients. The providers below are singletons, so
@@ -76,19 +130,16 @@ builder.Services.AddDataProtection()
     .SetApplicationName("AspNetIdentitySample");
 #warning The Data Protection key ring above is a LOCAL, UNENCRYPTED folder: single-node and unprotected. For real deployments persist it to a store every instance shares and add ProtectKeysWith an X.509 certificate or a KMS, or a fresh pod cannot decrypt the stored signing key. See https://docs.abblix.com/docs/signing-key-persistence#encrypting-the-stored-key-at-rest
 
-// Signing keys: replace the ephemeral in-memory default (OidcOptionsKeysProvider, which would
-// generate a new key on every startup) with the database-backed provider. Registered after
-// AddOidcServices so the last singular registration wins.
+// Signing keys: the database-backed provider takes the place of the server's default, which reads each
+// tenant's SigningKeys from its definition. Registered after AddOidcServices, it replaces that default,
+// since the last registration of a service is the one resolved, and answers for each tenant's keys, so
+// the tenant above declares none.
 builder.Services.AddSingleton<IAuthServiceKeysProvider, DatabaseKeysProvider>();
 
-// Client store: decorate the read seam and replace the write seam, after AddOidcServices. The
-// library aliases its in-memory store to both client interfaces unconditionally, so a store
-// pre-registered before AddOidcServices would be silently overridden. Decorating and replacing
-// afterwards is the pattern that takes effect on this version.
-builder.Services.AddSingleton<DurableClientStore>();
-builder.Services.Decorate<IClientInfoProvider, LayeredClientInfoProvider>();
-builder.Services.RemoveAll<IClientInfoManager>();
-builder.Services.AddAlias<IClientInfoManager, DurableClientStore>();
+// Client store: the server keeps its own, which serves the clients the tenant declares first, and keeps
+// the registrations in the store the host registers here instead of in memory. A singleton, since the
+// server's client store that calls it is one.
+builder.Services.AddSingleton<ITenantClientRegistrationStore, DurableClientStore>();
 
 // The host-registered cookie carries the library's OIDC session: Identity never signs in, it only verifies.
 // The security stamp snapshotted at login is compared on every request, so a password change
@@ -128,7 +179,9 @@ using (var scope = app.Services.CreateScope())
 
     var users = scope.ServiceProvider.GetRequiredService<UserManager<IdentityUser>>();
 #if (HasSampleUser)
-    if (await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
+    // A development account with a login known from the template, so only a Development run creates it. Once
+    // created it stays in users.db, so a deployment starts from a users.db that never ran in Development
+    if (app.Environment.IsDevelopment() && await users.FindByEmailAsync("SAMPLE_USER_EMAIL") is null)
     {
         var user = new IdentityUser
         {
@@ -156,7 +209,7 @@ using (var scope = app.Services.CreateScope())
 
 #warning DEV convenience only: even on the console this credential reaches container stdout and any log sink scraping it. A real deployment never surfaces a password: seed with no usable password and email a reset link, or force a change on first login.
         // Show the generated password once, on the console, so the sample is runnable out of the box.
-        Console.WriteLine($"Seeded SAMPLE_USER_EMAIL with a one-time generated password: {password}");
+        Console.WriteLine($"Seeded {user.Email} with a one-time generated password: {password}");
 
         // Pause so an operator at a terminal can copy the password before startup logs scroll it away.
         // Skipped when stdin is not interactive (container, CI, a background run) so it never hangs a headless start.
@@ -197,10 +250,10 @@ using (var scope = app.Services.CreateScope())
     }
 #endif
 
-    // Seed the OIDC store so the sample runs out of the box: a signing key that survives restarts,
-    // and the test client. On the next run both already exist, so the same key keeps validating
-    // tokens issued before the restart. A real deployment replaces EnsureCreated with EF migrations,
-    // and keeps signing keys in an HSM or KMS rather than the database (see the #warning on PersistedSigningKey).
+    // Seed the OIDC store so the sample runs out of the box: a signing key that survives restarts, and the
+    // clients the configuration declares. On the next run they already exist, so the same key keeps validating
+    // tokens issued before the restart. A real deployment replaces EnsureCreated with EF migrations, and keeps
+    // signing keys in an HSM or KMS rather than the database (see the #warning on PersistedSigningKey).
     var clock = scope.ServiceProvider.GetRequiredService<TimeProvider>();
 
     var oidcStoreFactory = scope.ServiceProvider.GetRequiredService<IDbContextFactory<OidcStoreDbContext>>();
@@ -208,7 +261,10 @@ using (var scope = app.Services.CreateScope())
     {
         await oidcStore.Database.EnsureCreatedAsync();
 
-        if (!await oidcStore.SigningKeys.AnyAsync(key => key.IsActive && key.Usage == PublicKeyUsages.Signature))
+        if (!await oidcStore.SigningKeys.AnyAsync(key => key.TenantId == tenant.Id
+                                                         && key.Generation == tenant.Generation
+                                                         && key.IsActive
+                                                         && key.Usage == PublicKeyUsages.Signature))
         {
             var keyProtector = scope.ServiceProvider
                 .GetRequiredService<IDataProtectionProvider>()
@@ -218,6 +274,8 @@ using (var scope = app.Services.CreateScope())
             oidcStore.SigningKeys.Add(new PersistedSigningKey
             {
                 KeyId = signingKey.KeyId!,
+                TenantId = tenant.Id,
+                Generation = tenant.Generation,
                 Usage = PublicKeyUsages.Signature,
                 JwkJson = keyProtector.Protect(JsonSerializer.Serialize<JsonWebKey>(signingKey)),
                 CreatedAt = clock.GetUtcNow(),
@@ -226,25 +284,83 @@ using (var scope = app.Services.CreateScope())
         }
     }
 
-    var clients = scope.ServiceProvider.GetRequiredService<DurableClientStore>();
-    if (await clients.TryFindClientAsync("test_client") is null)
+    // The clients the configuration declares under Oidc:Clients, written through the server's client store as a
+    // registration would be. Only appsettings.Development.json declares any, the demo clients test_client and
+    // console_client, so a host started in any other environment seeds none. A registration holds the identifier
+    // of the registration access token that manages it. No token is issued for a seeded client, so it holds the
+    // identifier of one never issued, and no request to the RFC 7592 configuration endpoint can change or remove
+    // it. On the next run the client is already held, so the add is refused and the stored row is kept as it is.
+#warning DEV convenience only: the demo clients in appsettings.Development.json share the secret "secret", published with this template. A row seeded once, theirs or any configured client's, stays in oidc.db whatever environment later runs on it and whatever the configuration later says (table Clients, ClientKey the id in upper case: TEST_CLIENT and CONSOLE_CLIENT for the demo clients). Before a real deployment delete those rows, or start from a database that was never run in Development.
+    var configured = ReadClients(app.Configuration);
+
+    // The client store takes whatever it is given: a client the server could never authenticate (a plain secret
+    // where a hash belongs, a hex digest) would start a host that refuses its every token request, and of a
+    // repeated id only the first would be kept, without a word. The checks the server runs at startup on the
+    // clients a tenant declares judge these instead.
+    var oidcOptions = scope.ServiceProvider.GetRequiredService<IOptions<OidcOptions>>().Value;
+    var refusals = scope.ServiceProvider.GetServices<ITenantsCheck>()
+        .SelectMany(check => check.Check([DefineTenant(configured)], oidcOptions))
+        .Select(refusal => refusal.Message)
+        .ToList();
+    if (refusals.Count > 0)
+        throw new InvalidOperationException($"The Oidc:Clients configuration section declares clients the server refuses: {string.Join(" ", refusals)}");
+
+    var clients = scope.ServiceProvider.GetRequiredService<IClientInfoManager>();
+    var tokenIds = scope.ServiceProvider.GetRequiredService<ITokenIdGenerator>();
+    foreach (var client in configured)
     {
-        await clients.AddClientAsync(new ClientInfo("test_client")
+        if (await clients.TryAddClientAsync(tenant, new RegisteredClient(client, tokenIds.GenerateTokenId())))
+            continue;
+
+        // Already stored: every restart lands here, and only a stored client that differs from its entry means
+        // somebody's edit, a rotated secret say, is not in force.
+        var stored = await clients.TryFindRegisteredClientAsync(tenant, client.ClientId);
+        if (stored is null || JsonSerializer.Serialize(stored.ClientInfo) != JsonSerializer.Serialize(client))
         {
-            ClientSecrets = [new ClientSecret { Sha512Hash = SHA512.HashData(Encoding.UTF8.GetBytes("secret")) }],
-            TokenEndpointAuthMethod = ClientAuthenticationMethods.ClientSecretPost,
-            AllowedGrantTypes = [GrantTypes.AuthorizationCode],
-            PkceRequired = true,
-            RedirectUris = [new Uri("https://localhost:5002/signin-oidc", UriKind.Absolute)],
-            PostLogoutRedirectUris = [new Uri("https://localhost:5002/signout-callback-oidc", UriKind.Absolute)],
-        });
+            app.Logger.LogWarning(
+                "Client {ClientId} is already stored, so its entry in Oidc:Clients was not applied to it. To seed it " +
+                "again from the configuration, delete its row from oidc.db (table Clients, ClientKey the id in upper case)",
+                client.ClientId);
+        }
     }
+}
+
+// The clients the Oidc:Clients section declares, none when it is absent. Left to itself the binder skips a value
+// it cannot convert and keeps an entry with no ClientId, so both are refused here, naming the section.
+static ClientInfo[] ReadClients(IConfiguration configuration)
+{
+    const string section = "Oidc:Clients";
+    ClientInfo[]? clients;
+    try
+    {
+        clients = configuration.GetSection(section).Get<ClientInfo[]>(options => options.ErrorOnUnknownConfiguration = true);
+    }
+    catch (InvalidOperationException exception)
+    {
+        // The binder's own message says only that binding failed; the key and the value it could not read are in
+        // the exceptions beneath it.
+        var reasons = new List<string>();
+        for (var reason = exception.InnerException ?? exception; reason is not null; reason = reason.InnerException)
+            reasons.Add(reason.Message);
+
+        throw new InvalidOperationException($"The {section} configuration section does not describe clients: {string.Join(" ", reasons)}", exception);
+    }
+
+    var unnamed = Array.FindIndex(clients ?? [], client => string.IsNullOrEmpty(client.ClientId));
+    if (unnamed >= 0)
+        throw new InvalidOperationException($"The {section} configuration section has a client with no ClientId at {section}:{unnamed}");
+
+    return clients ?? [];
 }
 
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
+#if (UseMvc)
     app.UseExceptionHandler("/Home/Error");
+#else
+    app.UseExceptionHandler(MinimalApiPages.ErrorPath);
+#endif
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -256,8 +372,19 @@ app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
 
+#if (UseMvc)
+// The library's controllers carry no routes of their own, so the default route below never reaches them
+app.MapOidcControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+#else
+// The Minimal API counterpart of the MVC host's app.MapOidcControllers()
+app.MapOidcEndpoints();
+app.MapHostPages();
+#endif
+
+// The relying party of test_client, so a browser can walk a whole sign-in on this project in Development
+app.MapDemoClient(ReadClients(app.Configuration));
 
 app.Run();

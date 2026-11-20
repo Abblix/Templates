@@ -1,0 +1,22 @@
+# Build output
+bin/
+obj/
+
+# The SQLite databases the first run creates: users with their password hashes, and the OIDC store with the
+# client secret hashes and the encrypted signing key
+*.db
+*.db-shm
+*.db-wal
+
+# The Data Protection key ring, which decrypts the signing key stored in oidc.db: committed beside it, the two
+# give anyone who reads the repository a key to sign tokens as this provider
+dataprotection-keys/
+
+# Built and restored by the build from ClientAssets
+wwwroot/lib/
+ClientAssets/node_modules/
+
+# Per-user IDE state
+.vs/
+.idea/
+*.user

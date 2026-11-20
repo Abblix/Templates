@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
-    <TargetFramework>net10.0</TargetFramework>
+    <TargetFramework>net11.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <!-- Client-side vendor assets (Bootstrap) are bundled from ClientAssets into
@@ -9,10 +9,14 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);$(ClientRoot)node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
-	<PackageReference Include="Abblix.Oidc.Server.Mvc" Version="2.3.0" />
-	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
-	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.9" />
-	<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.3" />
+<!--#if (UseMvc) -->
+	<PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.0.0" />
+<!--#else -->
+	<PackageReference Include="Abblix.Oidc.Server.MinimalApi" Version="3.0.0" />
+<!--#endif -->
+	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0" />
+	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
+	<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
   </ItemGroup>
   <ItemGroup>
     <!-- Keep the npm project visible in the IDE but out of the .NET item graph. -->
@@ -20,18 +24,26 @@
     <None Remove="$(ClientRoot)**" />
     <None Include="$(ClientRoot)**" Exclude="$(ClientRoot)node_modules\**" />
   </ItemGroup>
-  <!-- Restore npm packages when node_modules is missing (fresh clone / CI). -->
-  <Target Name="EnsureClientDeps" Condition="!Exists('$(ClientRoot)node_modules')">
+  <ItemGroup>
+    <!-- It declares the demo clients and their published secret: keep it out of the published app. -->
+    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
+  </ItemGroup>
+  <!-- Restore npm packages whenever package-lock.json is newer than the copy npm keeps in node_modules: a fresh clone, or a pull that changed the lock. -->
+  <Target Name="EnsureClientDeps" Inputs="$(ClientRoot)package-lock.json" Outputs="$(ClientRoot)node_modules\.package-lock.json">
     <Exec Command="node --version" ContinueOnError="true">
       <Output TaskParameter="ExitCode" PropertyName="NodeExitCode" />
     </Exec>
     <Error Condition="'$(NodeExitCode)' != '0'" Text="Node.js is required to build this project. Install it from https://nodejs.org/ and restart your terminal or IDE." />
-    <Exec WorkingDirectory="$(ClientRoot)" Command="npm install" />
+    <!-- npm ci installs exactly what package-lock.json records and fails when package.json no longer matches
+         it, so a version range never quietly pulls in a newer release. A compromised new release of any
+         package, even one several levels down, would otherwise run its install scripts on the machine of
+         everyone who builds this project. -->
+    <Exec WorkingDirectory="$(ClientRoot)" Command="npm ci" />
   </Target>
   <!-- Bundle Bootstrap into wwwroot/lib before every build. Incremental: skipped
        when the outputs are newer than the sources. -->
   <Target Name="BuildClientAssets" BeforeTargets="Build" DependsOnTargets="EnsureClientDeps"
-          Inputs="$(ClientRoot)package.json;$(ClientRoot)vite.config.ts;$(ClientRoot)src\main.ts"
+          Inputs="$(ClientRoot)package.json;$(ClientRoot)package-lock.json;$(ClientRoot)vite.config.ts;$(ClientRoot)src\main.ts"
           Outputs="wwwroot\lib\bootstrap-bundle.js;wwwroot\lib\bootstrap-bundle.css">
     <Exec WorkingDirectory="$(ClientRoot)" Command="npm run build" />
   </Target>

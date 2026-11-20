@@ -1,0 +1,89 @@
+# Requests that show OpenIDProviderApp working: the discovery document, the published keys, an access token
+# from the client credentials grant and introspection of that token, then a sign-in on the login page with
+# the authorization code flow and the exchange of its code for tokens.
+#
+# Start the provider first (dotnet run), then open this file in Visual Studio, JetBrains Rider or VS Code
+# (REST Client extension) and send each request in turn. Trust the development HTTPS certificate once so
+# the client accepts it:
+#     dotnet dev-certs https --trust
+
+# The provider's address: its launch profile's URL, which is also the issuer it writes into every token.
+@host = https://localhost:5001
+
+# A confidential client registered for the client credentials grant only; "secret" is the demo
+# secret whose SHA-512 hash appsettings.Development.json declares, read at startup in Development (the
+# environment of the launch profile `dotnet run` uses).
+@clientId = console_client
+@clientSecret = secret
+
+# After running the token request below, paste its access_token here to run the introspection request.
+@accessToken = paste-the-access_token-here
+
+# For the code exchange at the end of this file: paste the code and the code_verifier the demo client's
+# page shows after a sign-in. The verifier proves to the token endpoint that the client exchanging the code
+# is the one that asked for it, so the demo client generates a new one for every sign-in.
+@code = paste-the-code-here
+@codeVerifier = paste-the-code_verifier-here
+
+# After the code exchange, paste its access_token and refresh_token here for the last two requests.
+@userAccessToken = paste-the-access_token-of-the-code-exchange-here
+@refreshToken = paste-the-refresh_token-here
+
+### Discovery document
+# Answers 200 with the issuer https://localhost:5001 and the endpoint addresses used below: token_endpoint,
+# jwks_uri and introspection_endpoint.
+GET {{host}}/.well-known/openid-configuration
+
+### Published keys
+# Answers 200 with the public half of each signing key (kty, n, e), never any private material.
+GET {{host}}/.well-known/jwks
+
+### Access token from the client credentials grant
+# Answers 200 with access_token, token_type Bearer and expires_in. The token is addressed to this provider
+# (its aud is the issuer), so no API registered with the provider accepts it; the request names no scope,
+# so the token carries none.
+POST {{host}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id={{clientId}}&client_secret={{clientSecret}}
+
+### Introspection of that token
+# The endpoint answers only an authenticated client, so the same client sends its own credentials; the
+# token was issued to it, so it needs no further permission. Answers 200 with "active": true and the
+# token's client_id and exp; an expired or unknown token answers 200 with "active": false.
+POST {{host}}/connect/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token={{accessToken}}&client_id={{clientId}}&client_secret={{clientSecret}}
+
+### Tokens for a code from signing in as test_client
+# Signing in with the authorization code flow, as test_client, the interactive client that
+# appsettings.Development.json declares with the same demo secret "secret". This project serves the
+# client's pages itself in Development, so the sign-in happens in a browser: open https://localhost:5001/
+# and choose "Sign in with the demo client".
+#
+# The provider shows its login page; sign in there with the login and password given to dotnet new as
+# --user and --password (when --password was left out, the console shows the password generated for this
+# run). The browser then lands on the demo client's page, https://localhost:5001/demo/callback, which shows
+# the code and the code_verifier: paste them into @code and @codeVerifier at the top of this file and send
+# this request within a minute, the lifetime of a code.
+#
+# Answers 200 with id_token, access_token, refresh_token, token_type Bearer and expires_in. The id_token
+# names the user in its sub claim. redirect_uri repeats the one of the authorization request, as the token
+# endpoint requires.
+POST {{host}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=authorization_code&code={{code}}&redirect_uri=https%3A%2F%2Flocalhost%3A5001%2Fdemo%2Fcallback&code_verifier={{codeVerifier}}&client_id=test_client&client_secret=secret
+
+### The signed-in user's claims
+# Answers 200 with sub, name and email for the access token of the code exchange above.
+GET {{host}}/connect/userinfo
+Authorization: Bearer {{userAccessToken}}
+
+### New tokens for the refresh token
+# Answers 200 with a new access_token and refresh_token for the same user, without a new sign-in.
+POST {{host}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=refresh_token&refresh_token={{refreshToken}}&client_id=test_client&client_secret=secret

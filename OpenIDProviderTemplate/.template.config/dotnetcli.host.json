@@ -1,6 +1,10 @@
 {
     "$schema": "http://json.schemastore.org/dotnetcli.host",
     "symbolInfo": {
+        "host": {
+            "longName": "host",
+            "shortName": ""
+        },
         "HttpsPort": {
             "longName": "https-port",
             "shortName": ""

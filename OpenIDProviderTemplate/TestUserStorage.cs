@@ -1,6 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Abblix.Jwt;
+using Abblix.Oidc.Server.Features.MultiTenancy;
 using Abblix.Oidc.Server.Features.UserAuthentication;
 using Abblix.Oidc.Server.Features.UserInfo;
 
@@ -19,8 +21,10 @@ public class TestUserStorage(params UserInfo[] users) : IUserInfoProvider
 {
     /// <summary>
     /// Asynchronously retrieves user information based on an authentication session and a collection of requested claims.
+    /// The server passes the tenant the request reached first; this provider serves a single tenant, so it does not look at it.
     /// </summary>
-    public Task<JsonObject?> GetUserInfoAsync(AuthSession authSession, IEnumerable<string> requestedClaims)
+    public Task<JsonObject?> GetUserInfoAsync(
+        TenantDefinition tenant, AuthSession authSession, IEnumerable<string> requestedClaims)
     {
         var userInfo = GetUserInfo(authSession.Subject, requestedClaims);
         return Task.FromResult(userInfo);
@@ -84,5 +88,15 @@ public class TestUserStorage(params UserInfo[] users) : IUserInfoProvider
 
         subject = null;
         return false;
+    }
+
+    /// <summary>
+    /// A random password for the sample account, so none is written into the project's source.
+    /// </summary>
+    public static string GeneratePassword()
+    {
+        const string characters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*-_";
+        const int length = 16;
+        return RandomNumberGenerator.GetString(characters, length);
     }
 }
