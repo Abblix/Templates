@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Drive every flow a scaffolded provider template offers, the way a browser and its clients would.
 
-Usage: drive-provider.py <issuer> <login> <password>
+Usage: drive-provider.py <issuer> <login> <password> [production]
 
-The host must run in Development, where appsettings.Development.json declares test_client and
-console_client with the published secret "secret". Each check prints one line; the script exits 1 when
-any failed, after running the rest, so one run names every broken flow.
+Without "production" the host must run in Development, where appsettings.Development.json declares
+test_client and console_client with the published secret "secret", and every flow is driven. With it the
+host runs in Production, and the script checks that nothing a new project knows from the template opens
+anything there: no demo client pages, no demo client, and no sample user to sign in with. Each check prints
+one line; the script exits 1 when any failed, after running the rest, so one run names every broken flow.
 
 The pages are read with html.parser, never by matching their text: the login form's antiforgery field
 and the sign-out forms are found as the form elements they are, whatever their markup looks like.
@@ -20,6 +22,7 @@ import urllib.request
 from html.parser import HTMLParser
 
 issuer, login, password = sys.argv[1], sys.argv[2], sys.argv[3]
+production = sys.argv[4:] == ["production"]
 
 # The host serves the ASP.NET Core development certificate, which the runner does not trust
 tls = ssl.create_default_context()
@@ -104,19 +107,63 @@ def redirect(status):
     return status in (302, 303)
 
 
+def json_object(body):
+    """The body as a JSON object, or an empty one when it is not one, so a check names its flow instead of the
+    script dying on the parse."""
+    try:
+        value = json.loads(body)
+    except ValueError:
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def only_form(body):
+    """The one form of a page, or None when it has none or several."""
+    forms = Page(body).forms
+    return forms[0] if len(forms) == 1 else None
+
+
 plain = browser()
 
+
+def production_checks():
+    status, _, body = call(plain, "/.well-known/openid-configuration")
+    check("discovery names this issuer", status == 200 and json_object(body).get("issuer") == issuer, f"{status} {body[:200]}")
+    status, _, body = call(plain, "/")
+    check("home page loads without the demo client", status == 200 and "/demo/start" not in Page(body).links,
+          f"{status} {body[:200]}")
+    status, _, body = call(plain, "/demo/start")
+    check("demo client pages are not served", status == 404, f"{status} {body[:200]}")
+    status, _, body = call(plain, "/connect/token", {"grant_type": "client_credentials", "client_id": "console_client",
+                                                     "client_secret": "secret"})
+    check("console_client with the published secret is refused", status == 401 and
+          json_object(body).get("error") == "invalid_client", f"{status} {body[:300]}")
+    signer = browser()
+    status, _, body = call(signer, "/Auth/Login")
+    form = only_form(body)
+    if check("login page shows its form", status == 200 and form is not None, f"{status} {body[:300]}"):
+        status, location, body = call(signer, form["action"], dict(form["fields"], email=login, password=password))
+        check("the sample user's login is refused", status == 200 and only_form(body) is not None,
+              f"{status} {location} {body[:300]}")
+
+
+if production:
+    production_checks()
+    print("FAILED: " + "; ".join(failures) if failures else "every Production check passed")
+    sys.exit(1 if failures else 0)
+
 status, _, body = call(plain, "/.well-known/openid-configuration")
-check("discovery names this issuer", status == 200 and json.loads(body).get("issuer") == issuer, f"{status} {body[:200]}")
+check("discovery names this issuer", status == 200 and json_object(body).get("issuer") == issuer, f"{status} {body[:200]}")
 status, _, body = call(plain, "/.well-known/jwks")
-check("jwks serves one signing key", status == 200 and len(json.loads(body).get("keys", [])) == 1, f"{status} {body[:200]}")
+check("jwks serves one signing key", status == 200 and len(json_object(body).get("keys", [])) == 1, f"{status} {body[:200]}")
 
 status, _, body = call(plain, "/connect/token", {"grant_type": "client_credentials", "client_id": "console_client",
                                                  "client_secret": "secret"})
-if check("client credentials grant issues a token to console_client", status == 200, f"{status} {body[:300]}"):
-    status, _, body = call(plain, "/connect/introspect", {"token": json.loads(body)["access_token"],
+if check("client credentials grant issues a token to console_client",
+         status == 200 and "access_token" in json_object(body), f"{status} {body[:300]}"):
+    status, _, body = call(plain, "/connect/introspect", {"token": json_object(body)["access_token"],
                                                           "client_id": "console_client", "client_secret": "secret"})
-    check("introspection reports that token active", status == 200 and json.loads(body).get("active") is True,
+    check("introspection reports that token active", status == 200 and json_object(body).get("active") is True,
           f"{status} {body[:300]}")
 
 status, _, body = call(plain, "/")
@@ -138,10 +185,10 @@ def sign_in(client):
                  f"{status} {location} {body[:300]}"):
         return None
     status, _, body = call(client, location)
-    forms = Page(body).forms
-    if not check("login page shows its form", status == 200 and len(forms) == 1, f"{status} {body[:300]}"):
+    form = only_form(body)
+    if not check("login page shows its form", status == 200 and form is not None, f"{status} {body[:300]}"):
         return None
-    status, location, body = call(client, forms[0]["action"], dict(forms[0]["fields"], email=login, password=password))
+    status, location, body = call(client, form["action"], dict(form["fields"], email=login, password=password))
     if not check("sign-in resumes the authorization request", redirect(status) and "/connect/authorize" in location,
                  f"{status} {location} {body[:300]}"):
         return None
@@ -162,9 +209,10 @@ def redeem(page):
         "grant_type": "authorization_code", "code": page.text["code"].strip(),
         "redirect_uri": issuer + "/demo/callback", "code_verifier": page.text["code_verifier"].strip(),
         "client_id": "test_client", "client_secret": "secret"})
-    tokens = json.loads(body) if status == 200 else {}
-    check("code exchange issues ID, access and refresh tokens",
-          all(name in tokens for name in ("id_token", "access_token", "refresh_token")), f"{status} {body[:300]}")
+    tokens = json_object(body) if status == 200 else {}
+    if not check("code exchange issues ID, access and refresh tokens",
+                 all(name in tokens for name in ("id_token", "access_token", "refresh_token")), f"{status} {body[:300]}"):
+        return {}
     return tokens
 
 
@@ -174,20 +222,23 @@ if callback:
     tokens = redeem(callback)
     if tokens:
         status, _, body = call(plain, "/connect/userinfo", headers={"Authorization": "Bearer " + tokens["access_token"]})
-        check("userinfo names the signed-in user", status == 200 and json.loads(body).get("email") == login,
+        check("userinfo names the signed-in user", status == 200 and json_object(body).get("email") == login,
               f"{status} {body[:300]}")
         status, _, body = call(plain, "/connect/token", {"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"],
                                                          "client_id": "test_client", "client_secret": "secret"})
-        check("refresh token issues a new access token", status == 200 and "access_token" in json.loads(body),
+        check("refresh token issues a new access token", status == 200 and "access_token" in json_object(body),
               f"{status} {body[:300]}")
 
     # The demo client signs out with no ID token, so the provider asks the user to confirm first
-    sign_out = callback.forms[-1]
-    status, _, body = call(user, sign_out["action"], sign_out["fields"])
-    confirmation = Page(body).forms
-    if check("sign-out with no ID token asks to confirm", status == 200 and len(confirmation) == 1 and
-             "confirmation" in confirmation[0]["fields"], f"{status} {body[:300]}"):
-        status, location, body = call(user, confirmation[0]["action"], confirmation[0]["fields"])
+    if check("demo client page offers a sign-out", bool(callback.forms), "no form on the page"):
+        sign_out = callback.forms[-1]
+        status, _, body = call(user, sign_out["action"], sign_out["fields"])
+        confirmation = only_form(body)
+    else:
+        confirmation = None
+    if confirmation is not None and check("sign-out with no ID token asks to confirm", status == 200 and
+                                          "confirmation" in confirmation["fields"], f"{status} {body[:300]}"):
+        status, location, body = call(user, confirmation["action"], confirmation["fields"])
         if check("confirmed sign-out returns to the demo client", redirect(status) and "/demo/signed-out" in location,
                  f"{status} {location} {body[:300]}"):
             status, _, body = call(user, location)
@@ -210,14 +261,16 @@ if callback:
 # The login page opened on its own: the sign-in ends on the home page
 direct = browser()
 status, _, body = call(direct, "/Auth/Login")
-form = Page(body).forms[0]
-status, location, body = call(direct, form["action"], dict(form["fields"], email=login, password=password))
-check("sign-in with no authorization request goes home", redirect(status) and location == "/", f"{status} {location} {body[:200]}")
+form = only_form(body)
+if check("login page opened on its own shows its form", form is not None, f"{status} {body[:300]}"):
+    status, location, body = call(direct, form["action"], dict(form["fields"], email=login, password=password))
+    check("sign-in with no authorization request goes home", redirect(status) and location == "/",
+          f"{status} {location} {body[:200]}")
 
 # A form another site submits carries no antiforgery token: the form again, and no session
 forged = browser()
 status, _, body = call(forged, "/Auth/Login", {"email": login, "password": password, "requestUri": ""})
-check("login form without its antiforgery token is shown again", status == 200 and len(Page(body).forms) == 1,
+check("login form without its antiforgery token is shown again", status == 200 and only_form(body) is not None,
       f"{status} {body[:300]}")
 status, location, _ = call(forged, "/demo/start")
 status, location, _ = call(forged, location)
@@ -226,10 +279,11 @@ check("that form signed nobody in", redirect(status) and "/Auth/Login" in locati
 # A form without credentials: the form again, not a server error
 empty = browser()
 status, _, body = call(empty, "/Auth/Login")
-form = Page(body).forms[0]
-status, _, body = call(empty, form["action"], dict(form["fields"]))
-check("login form without credentials is shown again", status == 200 and len(Page(body).forms) == 1,
-      f"{status} {body[:300]}")
+form = only_form(body)
+if form is not None:
+    status, _, body = call(empty, form["action"], dict(form["fields"]))
+check("login form without credentials is shown again", form is not None and status == 200 and
+      only_form(body) is not None, f"{status} {body[:300]}")
 
 print("FAILED: " + "; ".join(failures) if failures else "every flow passed")
 sys.exit(1 if failures else 0)

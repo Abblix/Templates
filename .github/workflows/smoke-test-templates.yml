@@ -46,10 +46,8 @@ jobs:
   smoke:
     name: Scaffold, build and run every template
     runs-on: ubuntu-latest
-    # Above the 5m baseline because each provider template now runs twice, once per host style: five
-    # scaffolds, five builds, three npm ci runs and nine live host runs, where three of each measured 61s
-    # on a cold runner. 8m is a ceiling for that unmeasured shape, to be set from the next runs' durations.
-    timeout-minutes: 8
+    # The 5m baseline: the whole job, with both host styles of each provider template, measured 1m48s.
+    timeout-minutes: 5
     steps:
       - name: Harden runner (audit egress)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -140,6 +138,8 @@ jobs:
             name="SmokeOidc_$host"
             work="$RUNNER_TEMP/$name"
             dotnet new abblix-oidc-server -n "$name" -o "$work" --host "$host" --user "$login" --password "$password"
+            # The project ships the .gitignore that keeps its databases and the key ring out of a commit
+            [ -f "$work/.gitignore" ] || { echo "::error::$host: the scaffolded project has no .gitignore"; exit 1; }
             url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
             port="${url##*:}"
             [ "$url" = "https://localhost:$port" ] && [ "$port" -ge 7000 ] && [ "$port" -le 7300 ] ||
@@ -201,8 +201,9 @@ jobs:
           sys.exit(1 if errors else 0)' host.log ||
               { echo "::error::$host: the host logged an error while its flows were driven"; exit 1; }
             # Again in Production, on a database never run in Development: the template must start there, and with
-            # no client in appsettings.json the demo clients' published secret must open nothing.
-            rm -f oidc.db oidc.db-wal oidc.db-shm
+            # no client in appsettings.json the demo clients' published secret must open nothing, no sample user is
+            # seeded, and no demo client page is served.
+            rm -f oidc.db oidc.db-wal oidc.db-shm users.db users.db-wal users.db-shm
             ASPNETCORE_ENVIRONMENT=Production dotnet "./$name.dll" --urls "$url" &
             pid=$!
             ok=0
@@ -210,21 +211,45 @@ jobs:
               if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
               sleep 1
             done
-            unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-              -d client_id=console_client -d client_secret=secret) || unseeded=none
+            closed=0
+            if [ "$ok" = 1 ]; then
+              python3 -I "$driver" "$url" "$login" "$password" production && closed=1
+            fi
             kill "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
             [ "$ok" = 1 ] || { echo "::error::$host: OIDC provider template did not start in Production: discovery did not respond"; exit 1; }
-            if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
-              echo "::error::$host: OIDC provider template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
-              exit 1
-            fi
+            [ "$closed" = 1 ] || { echo "::error::$host: in Production something the template publishes opened access, named above"; exit 1; }
             cd "$GITHUB_WORKSPACE"
             echo "OIDC provider template, $host host: OK"
           done
-        # Baseline 3m; one style measured 35s with the Production run, so the two styles have not been measured
-        # together yet and the ceiling is set from the next runs.
-        timeout-minutes: 4
+          # The default sample user with no --password: the first run generates its password, prints it and, on an
+          # interactive console, waits for Enter. With stdin redirected it must start without waiting, and the
+          # user must be in users.db, read with SQLite rather than from the printed line.
+          name=SmokeOidcGenerated
+          work="$RUNNER_TEMP/$name"
+          dotnet new abblix-oidc-server -n "$name" -o "$work"
+          url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
+          dotnet build "$work" -c Release
+          cd "$work/bin/Release/net11.0"
+          dotnet "./$name.dll" --urls "$url" < /dev/null > host.log 2>&1 &
+          pid=$!
+          ok=0
+          for _ in $(seq 1 40); do
+            if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
+            sleep 1
+          done
+          kill "$pid" 2>/dev/null || true
+          wait "$pid" 2>/dev/null || true
+          [ "$ok" = 1 ] || { cat host.log; echo "::error::with a generated password the provider did not start"; exit 1; }
+          python3 -I -c '
+          import sqlite3, sys
+          users = sqlite3.connect(sys.argv[1]).execute("select Email from AspNetUsers").fetchall()
+          print(users)
+          sys.exit(0 if users == [("demo@example.com",)] else 1)' users.db ||
+            { echo "::error::with a generated password the first run did not seed demo@example.com"; exit 1; }
+          cd "$GITHUB_WORKSPACE"
+        # Baseline 3m; measured 38s before the generated-password run was added.
+        timeout-minutes: 3
 
       - name: OIDC getting-started (in-memory) - scaffold both host styles, build, drive every flow
         # The learning template: in-memory stores and an ephemeral key, no npm. Scaffolded once per host style,
@@ -250,6 +275,7 @@ jobs:
             name="SmokeOidcGs_$host"
             work="$RUNNER_TEMP/$name"
             dotnet new abblix-oidc-server-gettingstarted -n "$name" -o "$work" --host "$host" --https-port 5443 --user "$login" --password "$password"
+            [ -f "$work/.gitignore" ] || { echo "::error::$host: the scaffolded project has no .gitignore"; exit 1; }
             jq -e --arg url "$url" '.profiles.https.applicationUrl == $url' "$work/Properties/launchSettings.json" > /dev/null ||
               { echo "::error::$host: launchSettings.json does not name $url, the address given with --https-port"; exit 1; }
             packages=$(dotnet msbuild "$work/$name.csproj" -getItem:PackageReference | jq -r '[.Items.PackageReference[].Identity | select(startswith("Abblix.Oidc.Server."))] | join(",")')
@@ -299,30 +325,24 @@ jobs:
               if curl -skf "$url/.well-known/openid-configuration" -o /dev/null; then ok=1; break; fi
               sleep 1
             done
-            unseeded=$(curl -sk -o unseeded.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-              -d client_id=console_client -d client_secret=secret) || unseeded=none
+            closed=0
+            if [ "$ok" = 1 ]; then
+              python3 -I "$driver" "$url" "$login" "$password" production && closed=1
+            fi
             authorize="$url/connect/authorize?client_id=test_client&response_type=code&scope=openid&redirect_uri=https%3A%2F%2Flocalhost%3A5443%2Fdemo%2Fcallback&code_challenge=E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM&code_challenge_method=S256"
             unknown=$(curl -sk -o unknown.json -w '%{http_code}' "$authorize") || unknown=none
-            demo=$(curl -sk -o /dev/null -w '%{http_code}' "$url/demo/start") || demo=none
             kill "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
             [ "$ok" = 1 ] || { echo "::error::$host: getting-started template did not start in Production: discovery did not respond"; exit 1; }
-            if [ "$unseeded" != 401 ] || ! jq -e '.error == "invalid_client"' unseeded.json > /dev/null; then
-              echo "::error::$host: getting-started template declares a demo client outside appsettings.Development.json: in Production console_client with the published secret was not refused with 401 invalid_client"
-              exit 1
-            fi
+            [ "$closed" = 1 ] || { echo "::error::$host: in Production something the template publishes opened access, named above"; exit 1; }
             if [ "$unknown" != 400 ] || ! jq -e '.error == "unauthorized_client"' unknown.json > /dev/null; then
               echo "::error::$host: getting-started template declares a demo client outside appsettings.Development.json: in Production the authorization request of test_client was not refused with 400 unauthorized_client"
               exit 1
             fi
-            # The demo client's pages exist only where its client does
-            [ "$demo" = 404 ] ||
-              { echo "::error::$host: in Production the demo client's start page answered $demo, not 404"; exit 1; }
             cd "$GITHUB_WORKSPACE"
             echo "OIDC getting-started template, $host host: OK"
           done
-        # Baseline 3m; one style measured 9s and 32s with the sign-in and the Production run, so the two styles
-        # together stay inside it.
+        # Baseline 3m; measured 17s.
         timeout-minutes: 3
 
       - name: React template - scaffold, publish, serve SPA
@@ -335,6 +355,7 @@ jobs:
           work="$RUNNER_TEMP/react"
           pub="$RUNNER_TEMP/react-pub"
           dotnet new abblix-react -n SmokeReact -o "$work"
+          [ -f "$work/.gitignore" ] || { echo "::error::the scaffolded React project has no .gitignore"; exit 1; }
           # Both ports are generated: the host's, read back from launchSettings.json, and the Vite dev
           # server's, read back from the project's SpaProxyServerUrl as MSBuild evaluates it.
           url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
