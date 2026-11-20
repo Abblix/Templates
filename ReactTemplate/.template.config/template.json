@@ -17,7 +17,7 @@
     "defaultName": "ReactApp",
     "shortName": [
         "abblix-react",
-        "react-net10",
+        "react-net",
         "react-typescript",
         "react-vite"
     ],
