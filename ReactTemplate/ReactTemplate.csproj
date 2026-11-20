@@ -17,8 +17,10 @@
     <None Remove="$(SpaRoot)**"/>
     <None Include="$(SpaRoot)**" Exclude="$(SpaRoot)node_modules\**"/>
   </ItemGroup>
+  <!-- A Debug build restores npm packages, so dotnet run can start the Vite dev server; a Release build does not need Node. -->
+  <Target Name="DebugEnsureNodeEnv" BeforeTargets="Build" Condition=" '$(Configuration)' == 'Debug' " DependsOnTargets="EnsureClientDeps"/>
   <!-- Restore npm packages whenever package-lock.json is newer than the copy npm keeps in node_modules: a fresh clone, or a pull that changed the lock. -->
-  <Target Name="EnsureClientDeps" BeforeTargets="Build" Inputs="$(SpaRoot)package-lock.json" Outputs="$(SpaRoot)node_modules\.package-lock.json">
+  <Target Name="EnsureClientDeps" Inputs="$(SpaRoot)package-lock.json" Outputs="$(SpaRoot)node_modules\.package-lock.json">
     <Exec Command="node --version" ContinueOnError="true">
       <Output TaskParameter="ExitCode" PropertyName="ErrorCode"/>
     </Exec>

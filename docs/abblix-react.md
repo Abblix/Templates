@@ -7,7 +7,7 @@ The template lives in the [ReactTemplate](../ReactTemplate) folder. What changed
 ## Requirements
 
 - A .NET SDK that builds .NET 10, and the ASP.NET Core 10 runtime to run the host. The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) brings both; the .NET 11 SDK builds the project too, and running it then needs the ASP.NET Core 10 runtime installed beside it.
-- [Node.js](https://nodejs.org/) with npm. Every build installs the npm packages with `npm ci`, exactly as `ClientApp/package-lock.json` records them, whenever that lock is newer than the last install, `dotnet run` starts the Vite dev server with npm, and `dotnet publish` builds the application.
+- [Node.js](https://nodejs.org/) with npm. A Debug build and `dotnet publish` install the npm packages with `npm ci`, exactly as `ClientApp/package-lock.json` records them, whenever that lock is newer than the last install; `dotnet run` starts the Vite dev server with npm, and `dotnet publish` builds the application. A Release build does not need Node.js.
 
 ## Creating a project from the command line
 
