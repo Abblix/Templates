@@ -1,4 +1,5 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Security.Cryptography;
 using System.Text.Json.Nodes;
 using Abblix.Jwt;
 using Abblix.Oidc.Server.Features.MultiTenancy;
@@ -87,5 +88,15 @@ public class TestUserStorage(params UserInfo[] users) : IUserInfoProvider
 
         subject = null;
         return false;
+    }
+
+    /// <summary>
+    /// A random password for the sample account, so none is written into the project's source.
+    /// </summary>
+    public static string GeneratePassword()
+    {
+        const string characters = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$%^&*-_";
+        const int length = 16;
+        return RandomNumberGenerator.GetString(characters, length);
     }
 }

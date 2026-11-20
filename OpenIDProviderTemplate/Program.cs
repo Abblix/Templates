@@ -1,31 +1,53 @@
 using Abblix.DependencyInjection;
 using Abblix.Jwt;
-using Abblix.Oidc;
+using Abblix.Oidc.Server.AspNetCore.Formatters;
 using Abblix.Oidc.Server.Common.Constants;
 using Abblix.Oidc.Server.Features;
 using Abblix.Oidc.Server.Features.ClientInformation;
 using Abblix.Oidc.Server.Features.Consents;
 using Abblix.Oidc.Server.Features.MultiTenancy;
 using Abblix.Oidc.Server.Features.UserInfo;
+#if (UseMvc)
 using Abblix.Oidc.Server.Mvc;
+using Microsoft.AspNetCore.Mvc;
+#else
+using Abblix.Oidc.Server.MinimalApi;
+#endif
 using OpenIDProviderApp;
 
 var builder = WebApplication.CreateBuilder(args);
 
+#if (UseMvc)
 // Add services to the container.
 builder.Services.AddControllersWithViews();
+#else
+// The Minimal API host has no MVC, so the services the pipeline relies on are registered directly
+builder.Services.AddAuthorization();
+builder.Services.AddAntiforgery();
+builder.Services.AddMemoryCache();
+builder.Services.AddHttpContextAccessor();
+#endif
 
 #warning Dev-only: TestUserStorage is an in-memory demo store; back IUserInfoProvider with a real user database for production. https://docs.abblix.com/docs/aspnet-identity-integration
 // Add the TestUserStorage as a singleton service in the DI container.
+#if (HasSampleUser)
+#if (HasSamplePassword)
+var samplePassword = "SAMPLE_USER_PASSWORD";
+#else
+// The store lives in memory, so the password is generated again at every start and shown once on the console
+var samplePassword = TestUserStorage.GeneratePassword();
+Console.WriteLine($"Sign in as SAMPLE_USER_EMAIL with the password generated for this run: {samplePassword}");
+#endif
+#endif
 var userInfoStorage = new TestUserStorage(
 #if (HasSampleUser)
     // Dev-only sample account seeded from --user / --password so you can sign in
-    // immediately. Scaffold without --user to start with an empty store.
+    // immediately. Scaffold with --user "" to start with an empty store.
     new UserInfo(
         Subject: "SAMPLE_USER_SUBJECT",
         Name: "Demo User",
         Email: "SAMPLE_USER_EMAIL",
-        Password: "SAMPLE_USER_PASSWORD")
+        Password: samplePassword)
 #endif
 );
 builder.Services.AddSingleton(userInfoStorage);
@@ -36,6 +58,13 @@ builder.Services.AddAlias<IUserInfoProvider, TestUserStorage>();
 // Grants every client everything it asks for, which suits only clients of your own;
 // to ask the end user for consent, register your own IUserConsentsProvider instead
 builder.Services.AddConsentGrantedForEveryClient();
+
+// The clients the Oidc:Clients configuration section declares. Only appsettings.Development.json declares
+// any, test_client and console_client, whose secret is published with this template, so a host started in
+// any other environment has none. Add further clients there, in the same shape; a client's keys go in by
+// JwksUri, since an inline Jwks cannot be bound from configuration. For production, register clients in a
+// durable store instead. See https://docs.abblix.com/docs/durable-client-store
+var clients = ReadClients(builder.Configuration);
 
 // Register and configure Abblix OIDC Server, serving one issuer
 builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefinition
@@ -55,19 +84,22 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
     //    /*...*/
     //],
 
-    // The clients the Oidc:Clients configuration section declares. Only appsettings.Development.json declares
-    // any, test_client and console_client, whose secret is published with this template, so a host started in
-    // any other environment has none. Add further clients there, in the same shape; a client's keys go in by
-    // JwksUri, since an inline Jwks cannot be bound from configuration. For production, register clients in a
-    // durable store instead. See https://docs.abblix.com/docs/durable-client-store
-    Clients = ReadClients(builder.Configuration),
+    Clients = clients,
 
-    // The following URL leads to Login action of AuthController
+    // The login page this host serves
     LoginUri = new Uri("/Auth/Login", UriKind.Relative),
 
     #warning Dev-only: signing key is regenerated on every startup; provide a persistent, shared key for production via a custom IAuthServiceKeysProvider. https://docs.abblix.com/docs/signing-key-persistence
     SigningKeys = [JsonWebKeyFactory.CreateRsa(PublicKeyUsages.Signature)],
 }));
+
+// The end-session endpoint leaves two pages to the host: the confirmation of a sign-out no client vouched for, and
+// the page shown when no client asked to be sent back. Registered after AddOidcServices, it wraps the library's own.
+#if (UseMvc)
+builder.Services.Decorate<IEndSessionResponseFormatter<ActionResult>, EndSessionPages>();
+#else
+builder.Services.Decorate<IEndSessionResponseFormatter<IResult>, EndSessionPages>();
+#endif
 
 // The clients the Oidc:Clients section declares, none when it is absent. Left to itself the binder skips a value
 // it cannot convert and keeps an entry with no ClientId, so both are refused here, naming the section.
@@ -115,7 +147,11 @@ var app = builder.Build();
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
+#if (UseMvc)
     app.UseExceptionHandler("/Home/Error");
+#else
+    app.UseExceptionHandler(MinimalApiPages.ErrorPath);
+#endif
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
 }
@@ -127,10 +163,19 @@ app.UseRouting();
 app.UseCors();
 app.UseAuthorization();
 
+#if (UseMvc)
 // The library's controllers carry no routes of their own, so the default route below never reaches them
 app.MapOidcControllers();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
+#else
+// The Minimal API counterpart of the MVC host's app.MapOidcControllers()
+app.MapOidcEndpoints();
+app.MapHostPages();
+#endif
+
+// The relying party of test_client, so a browser can walk a whole sign-in on this project in Development
+app.MapDemoClient(clients);
 
 app.Run();

@@ -4,6 +4,7 @@
     "classifications": [
         "Web",
 		"MVC",
+		"Minimal API",
 		"OpenID",
 		"OIDC",
 		"OAuth2.0"
@@ -21,6 +22,24 @@
     },
     "preferNameDirectory": true,
     "symbols": {
+        "host": {
+            "type": "parameter",
+            "datatype": "choice",
+            "choices": [
+                { "choice": "minimal", "description": "Minimal API: the OpenID endpoints, the login page and the other pages are mapped as endpoints, with no MVC controllers or Razor views." },
+                { "choice": "mvc", "description": "ASP.NET Core MVC: the OpenID endpoints are MVC controllers, and the login page and the other pages are controllers with Razor views." }
+            ],
+            "defaultValue": "minimal",
+            "description": "How the host serves the OpenID endpoints and its own pages."
+        },
+        "UseMvc": {
+            "type": "computed",
+            "value": "(host == \"mvc\")"
+        },
+        "UseMinimalApi": {
+            "type": "computed",
+            "value": "(host == \"minimal\")"
+        },
         "HttpsPort": {
             "type": "parameter",
             "datatype": "integer",
@@ -47,14 +66,14 @@
         "user": {
             "type": "parameter",
             "datatype": "string",
-            "defaultValue": "",
-            "description": "Email/login of a dev sample user to pre-seed. If omitted, no sample user is created."
+            "defaultValue": "demo@example.com",
+            "description": "Login of the dev sample user the in-memory store holds. Pass an empty value for no user."
         },
         "password": {
             "type": "parameter",
             "datatype": "string",
-            "defaultValue": "Passw0rd!",
-            "description": "Password for the --user sample account. Dev-only: stored and compared in plaintext. Ignored when --user is omitted."
+            "defaultValue": "",
+            "description": "Password of the --user sample account. If omitted, a random one is generated at every start and printed on the console. Dev-only: stored and compared in plaintext."
         },
         "userInCSharp": {
             "type": "derived",
@@ -72,6 +91,10 @@
             "type": "computed",
             "value": "(user != \"\")"
         },
+        "HasSamplePassword": {
+            "type": "computed",
+            "value": "(password != \"\")"
+        },
         "SampleUserSubject": {
             "type": "generated",
             "generator": "guid",
@@ -81,6 +104,20 @@
             }
         }
     },
+    "sources": [
+        {
+            "modifiers": [
+                {
+                    "condition": "(UseMinimalApi)",
+                    "exclude": [ "Controllers/**", "Views/**", "Models/**", "wwwroot/js/**" ]
+                },
+                {
+                    "condition": "(UseMvc)",
+                    "exclude": [ "MinimalApiPages.cs" ]
+                }
+            ]
+        }
+    ],
     "forms": {
         "cSharpString": {
             "identifier": "chain",
