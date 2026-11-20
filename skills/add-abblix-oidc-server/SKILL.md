@@ -212,8 +212,9 @@ application's existing cookie (for example `SignInManager.PasswordSignInAsync`) 
 only the session that `IAuthSessionService.SignInAsync` writes.
 
 The MVC controller and view, and the Minimal API endpoints, are in
-[references/login-page.md](references/login-page.md). A Minimal API application needs `app.UseAntiforgery()`
-after `app.UseRouting()` for its login form: without it a post without the antiforgery token is accepted.
+[references/login-page.md](references/login-page.md). Both check the login form's antiforgery token inside the
+handler with `IAntiforgery.IsRequestValidAsync`, so a form from another site is refused and a form that expired in
+a second tab is shown again instead of a bare 400; the Minimal API endpoint marks this with `.DisableAntiforgery()`.
 
 An application that already has a login page can add the hand-off at the end of its successful sign-in instead
 of adding a second page (point `LoginUri` at it and carry `request_uri` through its form), but only when its own
