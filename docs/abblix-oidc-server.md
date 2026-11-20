@@ -57,7 +57,7 @@ Copy it now, then press Enter to start the server...
 
 On an interactive console the provider waits for Enter, so the password can be copied before the startup log scrolls it away. When input is redirected, as in a container or a CI job, it starts right away.
 
-The user is created only in Development, and only when no user with that email address exists yet, so a provider started in any other environment never holds it. Identity keeps only a salted hash of the password, in `users.db`.
+The user is created only in Development, and only when no user with that email address exists yet. It stays in `users.db` afterwards, so a `users.db` that ever ran in Development holds it in every environment. Identity keeps only a salted hash of the password, in `users.db`.
 
 ## Creating a project from an IDE
 
@@ -117,8 +117,9 @@ A client seeded into `oidc.db` keeps its stored row on later runs. When its entr
 
 ## Before deploying
 
-The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when no `--password` is given, the printed password. Each warning names the fix. Besides them:
+The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when the sample user is created without `--password`, the printed password. Each warning names the fix. Besides them:
 
 - Set `Issuer` in `Program.cs` to the provider's public address, the one clients validate its tokens against.
 - Set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of `*`.
 - Delete the rows of `test_client` and `console_client` from `oidc.db`, or start from a database that never ran in Development.
+- Delete the sample user from `users.db`, or start from a `users.db` that never ran in Development: its login is the template's default or the one given to `dotnet new`.

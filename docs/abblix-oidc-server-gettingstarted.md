@@ -8,7 +8,7 @@ The template lives in the [OpenIDProviderTemplate](../OpenIDProviderTemplate) fo
 
 - The [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0). The project targets .NET 11.
 
-The pages load Bootstrap from a CDN, and the MVC host's pages also jQuery and jQuery Validation, so the project builds with the .NET SDK alone.
+The pages load Bootstrap from a CDN, and the MVC host's pages also load jQuery and jQuery Validation from CDNs, so the project builds with the .NET SDK alone.
 
 ## Creating a project from the command line
 
