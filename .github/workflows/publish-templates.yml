@@ -1,16 +1,22 @@
-name: Publish templates to NuGet
+name: Publish templates to NuGet and the Visual Studio Marketplace
 
-# Manual-only publish of the Abblix.Templates package to NuGet.org.
+# Manual-only publish of the Abblix.Templates package to NuGet.org and of the Visual Studio extension
+# that carries the same package to the Visual Studio Marketplace.
 # The package version is set explicitly by <PackageVersion> in
 # Abblix.Templates.csproj (no MinVer here) - bump it there before running.
 # NuGet.org rejects re-upload of an existing version; --skip-duplicate keeps a
-# re-run idempotent rather than failing.
+# re-run idempotent rather than failing. The Marketplace replaces an extension of the same version,
+# so a re-run publishes the same extension again.
+#
+# One package for both: the pack job builds the .nupkg once and records its SHA-256, and each
+# publishing job downloads it and refuses a file with any other digest, so NuGet.org and the
+# extension never carry different templates.
 
 on:
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Pack and list the package only; do not attest or push to NuGet.org'
+        description: 'Pack the package and build the extension, list both; do not attest or publish'
         required: false
         default: false
         type: boolean
@@ -25,42 +31,20 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  # NuGet.org trusted publishing: the job proves its identity with GitHub's OIDC token and receives a
-  # one-hour, single-use API key for this push, so no long-lived key is stored. The nuget.org policy
-  # names this repository, this workflow file and the publish-packages environment, so another
-  # workflow or a run without the approval cannot obtain a key.
-  publish:
-    name: Pack and publish Abblix.Templates
+  pack:
+    name: Pack Abblix.Templates
     runs-on: ubuntu-latest
-    # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
-    # key exchange needs lives in this environment.
-    environment: publish-packages
-    # 10m override on the 5m baseline: NuGet.org index sync after push can lag.
-    timeout-minutes: 10
+    timeout-minutes: 5
     permissions:
       contents: read
-      id-token: write # Sigstore OIDC for build-provenance attestation, and the NuGet.org key exchange
-      attestations: write # record SLSA L3 provenance in the repo
+    outputs:
+      sha256: ${{ steps.digest.outputs.sha256 }}
     steps:
       - name: Harden runner (audit egress)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
         with:
           egress-policy: audit
           disable-telemetry: true
-        timeout-minutes: 3
-
-      # Refuses before anything is packed or attested: a missing setup is the likeliest failure of
-      # the first real run, and a refusal after the attestation would leave one for a package that
-      # was never published.
-      - name: NuGet.org user for trusted publishing
-        if: ${{ !inputs.dry_run }}
-        env:
-          NUGET_USER: ${{ secrets.NUGET_USER }}
-        run: |
-          if [ -z "$NUGET_USER" ]; then
-            echo "::error title=NuGet.org trusted publishing::The publish-packages environment has no NUGET_USER secret. Skipped step: create the trusted publishing policy at https://www.nuget.org/account/trustedpublishing (owner Abblix; repository owner Abblix, repository Templates, workflow file publish-templates.yml, environment publish-packages, scope allowing new packages and new versions for the glob Abblix.Templates) and set the publish-packages environment secret NUGET_USER to the nuget.org profile name of the policy creator, then re-run the failed job"
-            exit 1
-          fi
         timeout-minutes: 3
 
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -80,9 +64,7 @@ jobs:
         run: dotnet pack Abblix.Templates.csproj -c Release -o nupkg
         timeout-minutes: 3
 
-      # The package is built, attested and pushed inside this one job, so nothing downstream reads
-      # a stored copy. A dry run is inspected from this listing; an artifact would spend the shared
-      # Actions storage quota for a file nobody downloads.
+      # A dry run is inspected from this listing.
       - name: List package contents
         run: |
           set -euo pipefail
@@ -91,11 +73,98 @@ jobs:
           done
         timeout-minutes: 3
 
+      - name: Record the package digest
+        id: digest
+        run: |
+          set -euo pipefail
+          count=$(find nupkg -maxdepth 1 -name '*.nupkg' | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error title=Pack::Expected exactly one package in nupkg, found $count"
+            exit 1
+          fi
+          sum=$(sha256sum nupkg/*.nupkg | cut -d' ' -f1)
+          echo "sha256=$sum" >> "$GITHUB_OUTPUT"
+          echo "Package digest: $sum"
+        timeout-minutes: 3
+
+      # The publishing jobs read the package from here; the digest above is what they check it
+      # against. One day is the shortest retention, enough for a re-run of a failed publishing job.
+      - name: Hand the package to the publishing jobs
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: templates-package
+          path: nupkg/*.nupkg
+          if-no-files-found: error
+          retention-days: 1
+        timeout-minutes: 3
+
+  # NuGet.org trusted publishing: the job proves its identity with GitHub's OIDC token and receives a
+  # one-hour, single-use API key for this push, so no long-lived key is stored. The nuget.org policy
+  # names this repository, this workflow file and the publish-packages environment, so another
+  # workflow or a run without the approval cannot obtain a key.
+  nuget:
+    name: Publish Abblix.Templates to NuGet.org
+    needs: pack
+    if: ${{ !inputs.dry_run }}
+    runs-on: ubuntu-latest
+    # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
+    # key exchange needs lives in this environment.
+    environment: publish-packages
+    # 10m override on the 5m baseline: NuGet.org index sync after push can lag.
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # Sigstore OIDC for build-provenance attestation, and the NuGet.org key exchange
+      attestations: write # record SLSA L3 provenance in the repo
+    steps:
+      - name: Harden runner (audit egress)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+        timeout-minutes: 3
+
+      # Refuses before anything is attested: a missing setup is the likeliest failure of the first
+      # real run, and a refusal after the attestation would leave one for a package that was never
+      # published.
+      - name: NuGet.org user for trusted publishing
+        env:
+          NUGET_USER: ${{ secrets.NUGET_USER }}
+        run: |
+          if [ -z "$NUGET_USER" ]; then
+            echo "::error title=NuGet.org trusted publishing::The publish-packages environment has no NUGET_USER secret. Skipped step: create the trusted publishing policy at https://www.nuget.org/account/trustedpublishing (owner Abblix; repository owner Abblix, repository Templates, workflow file publish-templates.yml, environment publish-packages, scope allowing new packages and new versions for the glob Abblix.Templates) and set the publish-packages environment secret NUGET_USER to the nuget.org profile name of the policy creator, then re-run the failed job"
+            exit 1
+          fi
+        timeout-minutes: 3
+
+      - name: Download the package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: templates-package
+          path: nupkg
+        timeout-minutes: 3
+
+      - name: Check the package is the one packed
+        env:
+          EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
+        run: |
+          set -euo pipefail
+          count=$(find nupkg -maxdepth 1 -name '*.nupkg' | wc -l)
+          if [ "$count" -ne 1 ]; then
+            echo "::error title=Package digest::Expected exactly one downloaded package, found $count"
+            exit 1
+          fi
+          actual=$(sha256sum nupkg/*.nupkg | cut -d' ' -f1)
+          if [ "$actual" != "$EXPECTED_SHA256" ]; then
+            echo "::error title=Package digest::The downloaded package has SHA-256 $actual, the pack job recorded $EXPECTED_SHA256. Skipped step: none can be redone here; dispatch the workflow anew so the package is packed again"
+            exit 1
+          fi
+        timeout-minutes: 3
+
       # Requested before the attestation, so a run NuGet.org issues no key to leaves no attestation
       # behind; the key is valid for one hour, far longer than the steps up to the push.
       - name: Get a short-lived NuGet.org key
         id: login
-        if: ${{ !inputs.dry_run }}
         uses: NuGet/login@8d196754b4036150537f80ac539e15c2f1028841 # v1.2.0
         with:
           user: ${{ secrets.NUGET_USER }}
@@ -109,9 +178,6 @@ jobs:
         timeout-minutes: 3
 
       - name: Attest build provenance
-        # Only for real publishes - provenance records repo attestation state,
-        # so a dry run must not leave an attestation for an unpublished package.
-        if: ${{ !inputs.dry_run }}
         uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
         with:
           subject-path: 'nupkg/*.nupkg'
@@ -119,7 +185,6 @@ jobs:
 
       - name: Push to NuGet.org
         id: push
-        if: ${{ !inputs.dry_run }}
         env:
           NUGET_API_KEY: ${{ steps.login.outputs.NUGET_API_KEY }}
         run: |
@@ -136,7 +201,7 @@ jobs:
       - name: Name the skipped step when NuGet.org refused the package
         if: ${{ failure() && steps.push.outcome == 'failure' }}
         run: |
-          echo "::error title=NuGet.org trusted publishing::NuGet.org refused Abblix.Templates; the push log above names the reason. Skipped step: when it names ownership or the key, make the trusted publishing policy's owner (Abblix) an owner of Abblix.Templates and let the policy's scope allow new packages and new versions for the glob Abblix.Templates at https://www.nuget.org/account/trustedpublishing, then re-run the failed job. When it names the package itself (id, version, metadata), fix Abblix.Templates.csproj, merge the fix into master and dispatch the workflow anew from master, the only branch the publish-packages environment admits: a re-run packs the same commit again"
+          echo "::error title=NuGet.org trusted publishing::NuGet.org refused Abblix.Templates; the push log above names the reason. Skipped step: when it names ownership or the key, make the trusted publishing policy's owner (Abblix) an owner of Abblix.Templates and let the policy's scope allow new packages and new versions for the glob Abblix.Templates at https://www.nuget.org/account/trustedpublishing, then re-run the failed job. When it names the package itself (id, version, metadata), fix Abblix.Templates.csproj, merge the fix into master and dispatch the workflow anew from master, the only branch the publish-packages environment admits: a re-run publishes the same package again"
           exit 1
         timeout-minutes: 3
 
@@ -147,19 +212,209 @@ jobs:
           if [ -n "$PKG" ]; then
             VERSION=$(basename "$PKG" .nupkg | sed 's|^Abblix.Templates.||')
             {
-              echo "## Templates package packed"
+              echo "## Templates package"
               echo ""
               echo "Package: \`$(basename "$PKG")\`"
               echo "Version: \`$VERSION\`"
-              if [ "${DRY_RUN}" = "true" ]; then
-                echo ""
-                echo "Dry run: not pushed to NuGet.org."
-              else
-                echo ""
-                echo "Pushed to https://www.nuget.org/packages/Abblix.Templates"
-              fi
+              echo ""
+              echo "Pushed to https://www.nuget.org/packages/Abblix.Templates"
             } >> "$GITHUB_STEP_SUMMARY"
           fi
+        timeout-minutes: 3
+
+  # The Visual Studio extension carrying the same package. Visual Studio Marketplace trusted
+  # publishing: the job exchanges GitHub's OIDC token for a Marketplace credential valid for 15
+  # minutes, so no long-lived token is stored. The Marketplace policy names this repository, this
+  # workflow file and the publish-packages environment.
+  marketplace:
+    name: Publish the Visual Studio extension
+    needs: pack
+    # A job that needs Windows runs on a GitHub-hosted Windows runner: the Visual Studio SDK that
+    # builds the VSIX (VsixUtil.exe) and VsixPublisher.exe that publishes it exist only for Windows.
+    runs-on: windows-latest
+    # The run waits for a reviewer's approval before any step starts; a dry run waits too.
+    environment: publish-packages
+    # 10m override on the 5m baseline: a Windows runner sets up slower, and the job talks to the
+    # Marketplace twice (token exchange, upload).
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      id-token: write # Sigstore OIDC for build-provenance attestation, and the Marketplace token exchange
+      attestations: write # record SLSA L3 provenance in the repo
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - name: Harden runner (audit egress)
+        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        with:
+          egress-policy: audit
+          disable-telemetry: true
+        timeout-minutes: 3
+
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+        timeout-minutes: 3
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
+        with:
+          dotnet-version: '10.0'
+        timeout-minutes: 3
+
+      - name: Download the package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: templates-package
+          path: nupkg
+        timeout-minutes: 3
+
+      - name: Check the package is the one packed
         env:
+          EXPECTED_SHA256: ${{ needs.pack.outputs.sha256 }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $packages = @(Get-ChildItem -Path nupkg -Filter *.nupkg -File)
+          if ($packages.Count -ne 1) {
+            Write-Output "::error title=Package digest::Expected exactly one downloaded package, found $($packages.Count)"
+            exit 1
+          }
+          $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $packages[0].FullName).Hash.ToLowerInvariant()
+          if ($actual -ne $env:EXPECTED_SHA256) {
+            Write-Output "::error title=Package digest::The downloaded package has SHA-256 $actual, the pack job recorded $($env:EXPECTED_SHA256). Skipped step: none can be redone here; dispatch the workflow anew so the package is packed again"
+            exit 1
+          }
+          "TEMPLATE_PACKAGE=$($packages[0].FullName)" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+        timeout-minutes: 3
+
+      # The project takes the extension's version from the package's nuspec and refuses a
+      # prerelease, whose version a VSIX cannot carry.
+      - name: Build the extension
+        run: |
+          $ErrorActionPreference = 'Stop'
+          dotnet build Vsix/Abblix.Templates.Vsix.csproj -c Release -o extension "-p:TemplatePackage=$env:TEMPLATE_PACKAGE"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        timeout-minutes: 3
+
+      # A dry run is inspected from this listing.
+      - name: List extension contents
+        id: vsix
+        run: |
+          $ErrorActionPreference = 'Stop'
+          Add-Type -AssemblyName System.IO.Compression.FileSystem
+          $files = @(Get-ChildItem -Path extension -Filter *.vsix -File)
+          if ($files.Count -ne 1) {
+            Write-Output "::error title=Extension::Expected exactly one .vsix in extension, found $($files.Count)"
+            exit 1
+          }
+          $zip = [System.IO.Compression.ZipFile]::OpenRead($files[0].FullName)
+          try {
+            $zip.Entries | ForEach-Object { '{0,10}  {1}' -f $_.Length, $_.FullName }
+            $entry = $zip.GetEntry('extension.vsixmanifest')
+            $reader = New-Object System.IO.StreamReader($entry.Open())
+            try { [xml]$manifest = $reader.ReadToEnd() } finally { $reader.Dispose() }
+          } finally {
+            $zip.Dispose()
+          }
+          $version = $manifest.PackageManifest.Metadata.Identity.Version
+          "path=$($files[0].FullName)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append -Encoding utf8
+        timeout-minutes: 3
+
+      - name: Attest build provenance
+        if: ${{ !inputs.dry_run }}
+        uses: actions/attest-build-provenance@a2bbfa25375fe432b6a289bc6b6cd05ecd0c4c32 # v4.1.0
+        with:
+          subject-path: 'extension/*.vsix'
+        timeout-minutes: 3
+
+      # VsixPublisher's own -oidc exchange is rejected by the Marketplace (it sends no api-version),
+      # so this step makes the exchange with the contract vsce uses and hands the 15-minute
+      # credential to VsixPublisher as its token. The GitHub token and the credential stay inside
+      # this one step and are masked before anything could print them.
+      - name: Publish to the Visual Studio Marketplace
+        id: publish
+        if: ${{ !inputs.dry_run }}
+        env:
+          VSIX_PATH: ${{ steps.vsix.outputs.path }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $manifestPath = 'Vsix/publishManifest.json'
+          $publisherName = (Get-Content -Raw -LiteralPath $manifestPath | ConvertFrom-Json).publisher
+          if (-not $publisherName) {
+            Write-Output "::error title=Visual Studio Marketplace::$manifestPath names no publisher"
+            exit 1
+          }
+          $vsixPublisher = (dotnet msbuild Vsix/Abblix.Templates.Vsix.csproj -getProperty:VsixPublisherPath | Out-String).Trim()
+          if (-not (Test-Path -LiteralPath $vsixPublisher)) {
+            Write-Output "::error title=Visual Studio Marketplace::VsixPublisher.exe not found at '$vsixPublisher', the path the extension project names inside its Microsoft.VSSDK.BuildTools package"
+            exit 1
+          }
+
+          if (-not $env:ACTIONS_ID_TOKEN_REQUEST_URL -or -not $env:ACTIONS_ID_TOKEN_REQUEST_TOKEN) {
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::GitHub offered this job no OIDC token: the job needs the permission id-token: write"
+            exit 1
+          }
+          $tokenUri = "$($env:ACTIONS_ID_TOKEN_REQUEST_URL)&audience=marketplace.visualstudio.com"
+          $githubToken = (Invoke-RestMethod -Method Get -Uri $tokenUri -Headers @{
+              Authorization = "Bearer $($env:ACTIONS_ID_TOKEN_REQUEST_TOKEN)"
+              Accept = 'application/json'
+            }).value
+          if (-not $githubToken) {
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::GitHub returned no OIDC token for this job"
+            exit 1
+          }
+          Write-Output "::add-mask::$githubToken"
+
+          try {
+            $exchange = Invoke-RestMethod -Method Post `
+              -Uri 'https://marketplace.visualstudio.com/_apis/gallery/token?api-version=7.2-preview.1' `
+              -Headers @{ Authorization = "FederatedToken $githubToken"; Accept = 'application/json' } `
+              -ContentType 'application/json' `
+              -Body (@{ publisherName = $publisherName } | ConvertTo-Json -Compress)
+          } catch {
+            $status = $_.Exception.Response.StatusCode.value__
+            # The Marketplace answers with a JSON error whose message names the cause; an annotation
+            # holds one line, so the message is taken from it rather than the whole body.
+            $reason = $_.ErrorDetails.Message
+            try { $reason = ($reason | ConvertFrom-Json).message } catch { $reason = "$reason" -replace '\s+', ' ' }
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::The Marketplace issued no credential for this run (HTTP $status): $reason Skipped step: on https://marketplace.visualstudio.com/manage open the publisher $publisherName, select Trusted Publishing and create the policy (repository owner Abblix, repository Templates, workflow publish-templates.yml, environment publish-packages); when the publisher does not exist yet, create it with the id $publisherName first. Then re-run the failed job"
+            exit 1
+          }
+          $credential = $exchange.credential
+          if (-not $credential) {
+            Write-Output "::error title=Visual Studio Marketplace trusted publishing::The Marketplace answered the token exchange without a credential"
+            exit 1
+          }
+          Write-Output "::add-mask::$credential"
+
+          & $vsixPublisher publish -payload $env:VSIX_PATH -publishManifest $manifestPath -personalAccessToken $credential
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        timeout-minutes: 5
+
+      - name: Name the skipped step when the Marketplace refused the extension
+        if: ${{ failure() && steps.publish.outcome == 'failure' }}
+        run: |
+          Write-Output "::error title=Visual Studio Marketplace::Publishing the extension failed; the step log above names the reason. Skipped step: when it names the publisher or the policy, fix them on https://marketplace.visualstudio.com/manage and re-run the failed job. When it names the extension itself (manifest, overview, categories), fix the files under Vsix/, merge the fix into master and dispatch the workflow anew from master: a re-run builds from the same commit"
+          exit 1
+        timeout-minutes: 3
+
+      - name: Summary
+        env:
+          VSIX_VERSION: ${{ steps.vsix.outputs.version }}
           DRY_RUN: ${{ inputs.dry_run }}
+        run: |
+          $lines = @(
+            '## Visual Studio extension',
+            '',
+            "Version: ``$($env:VSIX_VERSION)``",
+            ''
+          )
+          if ($env:DRY_RUN -eq 'true') {
+            $lines += 'Dry run: built, not published.'
+          } else {
+            $lines += 'Published to the Visual Studio Marketplace.'
+          }
+          $lines | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append -Encoding utf8
         timeout-minutes: 3

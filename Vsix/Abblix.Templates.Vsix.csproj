@@ -1,0 +1,85 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Visual Studio extension that carries the Abblix.Templates package. It never packs the templates
+    itself: TemplatePackage names an Abblix.Templates .nupkg already built (the one the release pushes
+    to nuget.org), the package goes into the extension unchanged, and the extension takes its version.
+
+      dotnet build Vsix/Abblix.Templates.Vsix.csproj -c Release -p:TemplatePackage=<path to .nupkg>
+
+    The VS SDK build runs VsixUtil.exe, so this builds on Windows only.
+  -->
+
+  <PropertyGroup>
+    <!-- The VS SDK targets build only .NET Framework projects; nothing is compiled here. -->
+    <TargetFramework>net472</TargetFramework>
+    <EnableDefaultItems>false</EnableDefaultItems>
+    <VSSDKBuildToolsAutoSetup>true</VSSDKBuildToolsAutoSetup>
+    <IncludeAssemblyInVSIXContainer>false</IncludeAssemblyInVSIXContainer>
+    <IncludeAssemblyFromOutputFolderInVSIXContainer>false</IncludeAssemblyFromOutputFolderInVSIXContainer>
+    <TargetVsixContainerName>Abblix.Templates.vsix</TargetVsixContainerName>
+    <VsSdkBuildToolsVersion>18.12.1606</VsSdkBuildToolsVersion>
+    <!-- The publisher ships in the same package; the release reads this path with -getProperty. -->
+    <VsixPublisherPath>$(NuGetPackageRoot)microsoft.vssdk.buildtools\$(VsSdkBuildToolsVersion)\tools\VSSDK\bin\VsixPublisher.exe</VsixPublisherPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.VSSDK.BuildTools" Version="$(VsSdkBuildToolsVersion)" PrivateAssets="all" />
+    <PackageReference Include="Microsoft.NETFramework.ReferenceAssemblies" Version="1.0.3" PrivateAssets="all" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="source.extension.vsixmanifest" />
+    <Content Include="Abblix.Templates.pkgdef" />
+    <Content Include="..\Abblix.png" Link="Abblix.png" />
+  </ItemGroup>
+
+  <!--
+    Reads the id and version from the package's own nuspec, so the extension's version is the version
+    the package carries rather than one parsed from a file name. The VSIX manifest asks for it through
+    |%CurrentProject%;GetVsixVersion|.
+  -->
+  <Target Name="ReadTemplatePackage">
+    <Error Condition="'$(TemplatePackage)' == ''"
+           Text="TemplatePackage is not set. Pass the Abblix.Templates package to put into the extension: -p:TemplatePackage=&lt;path to .nupkg&gt;" />
+    <Error Condition="!Exists('$(TemplatePackage)')"
+           Text="TemplatePackage '$(TemplatePackage)' does not exist. Pack Abblix.Templates.csproj first and pass the path of the .nupkg it wrote." />
+
+    <PropertyGroup>
+      <_TemplatePackageDir>$(IntermediateOutputPath)template-package\</_TemplatePackageDir>
+    </PropertyGroup>
+    <RemoveDir Directories="$(_TemplatePackageDir)" />
+    <Unzip SourceFiles="$(TemplatePackage)" DestinationFolder="$(_TemplatePackageDir)" Include="*.nuspec" />
+    <ItemGroup>
+      <_TemplateNuspec Include="$(_TemplatePackageDir)*.nuspec" />
+    </ItemGroup>
+    <Error Condition="'@(_TemplateNuspec->Count())' != '1'"
+           Text="'$(TemplatePackage)' holds @(_TemplateNuspec->Count()) .nuspec files at its root, where a NuGet package holds exactly one: it is not a NuGet package." />
+
+    <XmlPeek XmlInputPath="@(_TemplateNuspec)" Query="/*[local-name()='package']/*[local-name()='metadata']/*[local-name()='id']/text()">
+      <Output TaskParameter="Result" PropertyName="_TemplatePackageId" />
+    </XmlPeek>
+    <XmlPeek XmlInputPath="@(_TemplateNuspec)" Query="/*[local-name()='package']/*[local-name()='metadata']/*[local-name()='version']/text()">
+      <Output TaskParameter="Result" PropertyName="_TemplatePackageVersion" />
+    </XmlPeek>
+
+    <Error Condition="'$(_TemplatePackageId)' != 'Abblix.Templates'"
+           Text="'$(TemplatePackage)' is the package '$(_TemplatePackageId)', not Abblix.Templates." />
+    <!-- A VSIX version is Major.Minor.Build.Revision, numbers only, so a prerelease has no VSIX version to take. -->
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(_TemplatePackageVersion)', '^\d+\.\d+\.\d+$'))"
+           Text="Abblix.Templates $(_TemplatePackageVersion) is not a release version (Major.Minor.Patch). A Visual Studio extension version carries numbers only, so a prerelease package is not published as an extension." />
+  </Target>
+
+  <Target Name="GetVsixVersion" DependsOnTargets="ReadTemplatePackage" Outputs="$(_TemplatePackageVersion)" />
+
+  <!--
+    The package lies at the root of the extension, next to Abblix.Templates.pkgdef, whose
+    InstalledPath points Visual Studio's template engine at that folder.
+  -->
+  <Target Name="AddTemplatePackageToVsix" BeforeTargets="GetVsixSourceItems" DependsOnTargets="ReadTemplatePackage">
+    <ItemGroup>
+      <VSIXSourceItem Include="$(TemplatePackage)" />
+    </ItemGroup>
+  </Target>
+
+</Project>

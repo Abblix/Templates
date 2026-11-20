@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <!-- The Id names the extension for updates: changing it makes Visual Studio treat a new release as a different extension. -->
+    <Identity Id="Abblix.Templates" Version="|%CurrentProject%;GetVsixVersion|" Language="en-US" Publisher="Abblix" />
+    <DisplayName>Abblix Templates</DisplayName>
+    <Description xml:space="preserve">Project templates for the New Project dialog: two OpenID Provider templates built on Abblix OIDC Server, and an ASP.NET Core MVC host with a React and Vite frontend.</Description>
+    <MoreInfo>https://github.com/Abblix/Templates</MoreInfo>
+    <GettingStartedGuide>https://github.com/Abblix/Templates#-template-pages</GettingStartedGuide>
+    <Icon>Abblix.png</Icon>
+    <PreviewImage>Abblix.png</PreviewImage>
+    <Tags>openid connect, oauth2, oidc, identity provider, aspnetcore, react, vite, templates</Tags>
+  </Metadata>
+  <Installation>
+    <!-- Targeting Community covers Professional and Enterprise as well; [17.0,19.0) is Visual Studio 2022 and 2026. -->
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
+      <ProductArchitecture>amd64</ProductArchitecture>
+    </InstallationTarget>
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[17.0,19.0)">
+      <ProductArchitecture>arm64</ProductArchitecture>
+    </InstallationTarget>
+  </Installation>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[17.0,)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Assets>
+    <!-- Registers the template package with Visual Studio's template engine; the package lies next to it. -->
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="File" Path="Abblix.Templates.pkgdef" />
+  </Assets>
+</PackageManifest>

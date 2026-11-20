@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "web", "security", "other templates" ],
+  "identity": {
+    "internalName": "Templates"
+  },
+  "overview": "overview.md",
+  "priceCategory": "free",
+  "publisher": "Abblix",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/Abblix/Templates"
+}
