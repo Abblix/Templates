@@ -40,6 +40,7 @@ jobs:
       contents: read
     outputs:
       sha256: ${{ steps.digest.outputs.sha256 }}
+      on_nuget: ${{ steps.published.outputs.on_nuget }}
     steps:
       - name: Harden runner (audit egress)
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -63,6 +64,51 @@ jobs:
 
       - name: Pack
         run: dotnet pack Abblix.Templates.csproj -c Release -o nupkg
+        timeout-minutes: 3
+
+      # NuGet.org never replaces a version, so when this version is already published the release
+      # carries the published file rather than the fresh pack: the extension then holds the bytes
+      # NuGet.org serves, and the NuGet.org job, which has nothing to push, does not run.
+      - name: Take the published package when this version is on NuGet.org
+        id: published
+        run: |
+          set -euo pipefail
+          version=$(python3 - nupkg/*.nupkg <<'PY'
+          import sys, zipfile, xml.etree.ElementTree as ET
+          with zipfile.ZipFile(sys.argv[1]) as z:
+              names = [n for n in z.namelist() if "/" not in n and n.endswith(".nuspec")]
+              if len(names) != 1:
+                  sys.exit(f"expected one nuspec at the package root, found {len(names)}")
+              root = ET.fromstring(z.read(names[0]))
+          version = next((e.text for e in root.iter() if e.tag.rsplit("}", 1)[-1] == "version"), None)
+          if not version:
+              sys.exit("the nuspec carries no version")
+          print(version.strip())
+          PY
+          )
+          lower=$(printf '%s' "$version" | tr '[:upper:]' '[:lower:]')
+          url="https://api.nuget.org/v3-flatcontainer/abblix.templates/${lower}/abblix.templates.${lower}.nupkg"
+          if ! status=$(curl -sS -o published.nupkg -w '%{http_code}' "$url"); then
+            echo "::error title=NuGet.org::NuGet.org could not be reached to ask for Abblix.Templates $version. Skipped step: none; re-run the failed job once NuGet.org answers"
+            exit 1
+          fi
+          case "$status" in
+            200)
+              rm nupkg/*.nupkg
+              mv published.nupkg "nupkg/Abblix.Templates.${version}.nupkg"
+              echo "on_nuget=true" >> "$GITHUB_OUTPUT"
+              echo "Abblix.Templates $version is already on NuGet.org: the release carries the published package"
+              ;;
+            404)
+              rm -f published.nupkg
+              echo "on_nuget=false" >> "$GITHUB_OUTPUT"
+              echo "Abblix.Templates $version is not on NuGet.org yet: the release carries the fresh pack"
+              ;;
+            *)
+              echo "::error title=NuGet.org::Asking NuGet.org for Abblix.Templates $version answered HTTP $status. Skipped step: none; re-run the failed job once NuGet.org answers"
+              exit 1
+              ;;
+          esac
         timeout-minutes: 3
 
       # A dry run is inspected from this listing.
@@ -107,7 +153,8 @@ jobs:
     name: Publish Abblix.Templates to NuGet.org
     # Waits for the extension build too, so a package the extension cannot carry is never pushed.
     needs: [pack, extension]
-    if: ${{ !inputs.dry_run }}
+    # A version already on NuGet.org has nothing to push.
+    if: ${{ !inputs.dry_run && needs.pack.outputs.on_nuget != 'true' }}
     runs-on: ubuntu-latest
     # The run waits for a reviewer's approval before any step starts, and the NUGET_USER secret the
     # key exchange needs lives in this environment.
@@ -293,7 +340,7 @@ jobs:
       - name: Build the extension
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet build Vsix/Abblix.Templates.Vsix.csproj -c Release -o extension "-p:TemplatePackage=$env:TEMPLATE_PACKAGE"
+          dotnet build Vsix/Abblix.Templates.Vsix.csproj -c Release -o extension -p:RestoreLockedMode=true "-p:TemplatePackage=$env:TEMPLATE_PACKAGE"
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
         timeout-minutes: 3
 
@@ -384,7 +431,7 @@ jobs:
       - name: Prepare VsixPublisher
         run: |
           $ErrorActionPreference = 'Stop'
-          dotnet restore Vsix/Abblix.Templates.Vsix.csproj
+          dotnet restore Vsix/Abblix.Templates.Vsix.csproj --locked-mode
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $packaged = (dotnet msbuild Vsix/Abblix.Templates.Vsix.csproj -getProperty:VsixPublisherPath | Out-String).Trim()
           if (-not (Test-Path -LiteralPath $packaged)) {

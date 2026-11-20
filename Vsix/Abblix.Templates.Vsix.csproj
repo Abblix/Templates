@@ -18,6 +18,8 @@
     <IncludeAssemblyInVSIXContainer>false</IncludeAssemblyInVSIXContainer>
     <IncludeAssemblyFromOutputFolderInVSIXContainer>false</IncludeAssemblyFromOutputFolderInVSIXContainer>
     <TargetVsixContainerName>Abblix.Templates.vsix</TargetVsixContainerName>
+    <!-- The release restores in locked mode: VsixPublisher from this restore holds the Marketplace credential. -->
+    <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
     <VsSdkBuildToolsVersion>18.12.1606</VsSdkBuildToolsVersion>
     <!-- The publisher ships in the same package; the release reads this path with -getProperty. -->
     <VsixPublisherPath>$(NuGetPackageRoot)microsoft.vssdk.buildtools\$(VsSdkBuildToolsVersion)\tools\VSSDK\bin\VsixPublisher.exe</VsixPublisherPath>
