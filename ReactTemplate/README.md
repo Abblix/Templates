@@ -1,6 +1,6 @@
 <a name="top"></a>
 [![Abblix React Template](https://resources.abblix.com/imgs/jpg/templates-github-banner-react.jpg)](https://github.com/Abblix/Templates)
-[![.NET](https://img.shields.io/badge/.NET-10.0-512BD4)](#)
+[![.NET](https://img.shields.io/badge/.NET-11.0-512BD4)](#)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
 [![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](#)
 [![CPU](https://img.shields.io/badge/CPU-x86%2C%20x64%2C%20ARM%2C%20ARM64-FF8C00)](#)
@@ -32,14 +32,14 @@ This template creates an ASP.NET Core host with a single-page application built 
 
 ### Features
 
-- ASP.NET Core 10: the host, which serves the published application and falls back to `index.html` for client-side routes.
+- ASP.NET Core 11: the host, which serves the published application and falls back to `index.html` for client-side routes.
 - React 19 and TypeScript 7: the application in `ClientApp`.
 - Vite 8: the dev server with hot reload, and the production build.
 - oxlint: linting with the React plugin enabled.
 
 ## 📋 Prerequisites
 
-- A .NET SDK that builds .NET 10, and the ASP.NET Core 10 runtime to run the host. The [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0) brings both; the [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0) builds the project too, and running it then needs the ASP.NET Core 10 runtime installed beside it.
+- The [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0). The project targets .NET 11.
 - [Node.js and npm](https://nodejs.org/): a Debug build and `dotnet publish` install the npm packages with `npm ci`, exactly as `ClientApp/package-lock.json` records them, whenever that lock is newer than the last install; `dotnet run` starts the Vite dev server with npm, and `dotnet publish` builds the application. A Release build does not need Node.js.
 
 ## 📝 Installing the Templates

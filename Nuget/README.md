@@ -1,5 +1,5 @@
 [![Abblix Templates](https://raw.githubusercontent.com/Abblix/Templates/master/Nuget/templates-github-banner.jpg)](https://github.com/Abblix/Templates)
-[![.NET](https://img.shields.io/badge/.NET-10.0%2C%2011.0-512BD4)](#)
+[![.NET](https://img.shields.io/badge/.NET-11.0-512BD4)](#)
 [![language](https://img.shields.io/badge/language-C%23-239120)](https://learn.microsoft.com/ru-ru/dotnet/csharp/tour-of-csharp/overview)
 [![OS](https://img.shields.io/badge/OS-linux%2C%20windows%2C%20macOS-0078D4)](#)
 [![CPU](https://img.shields.io/badge/CPU-x86%2C%20x64%2C%20ARM%2C%20ARM64-FF8C00)](#)
@@ -45,7 +45,7 @@ Each template keeps a changelog of its own, so anyone who created a project from
 
 Before you begin using the Abblix ASP.NET Core Templates, ensure that your development environment is properly set up with the following tools:
 
-- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. The OpenID Connect Provider templates target .NET 11; the React template targets .NET 10, which the .NET 11 SDK builds as well, and runs on the [ASP.NET Core 10 runtime](https://dotnet.microsoft.com/download/dotnet/10.0), installed beside it.
+- [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0): This SDK is essential for building and running ASP.NET Core applications. It includes the necessary compilers, libraries, and tools to develop, test, and deploy your applications. All three templates target .NET 11.
 - [Node.js and npm](https://nodejs.org/): Node.js is required to manage the frontend dependencies for projects using React and Vite. npm (Node Package Manager) comes bundled with Node.js and is used to install and manage these dependencies. Having Node.js and npm installed ensures that you can seamlessly integrate and build the frontend parts of your application, especially when using modern JavaScript frameworks and tools like React and Vite.
 
 ## 📝 Installing the Templates
