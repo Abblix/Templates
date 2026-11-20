@@ -28,6 +28,8 @@ What changed in the project that the ReactTemplate creates, version by version. 
 
 ### Fixed
 
+- A path under `/api` that the host does not map answers 404. In 2.x it answered with the SPA's `index.html`, so a client calling a missing endpoint received a page instead of an error.
+- In Development a deep link opened on the host, such as `/about`, is redirected to the same path on the Vite dev server. In 2.x only the root was, and any other path answered 404.
 - The short names `react-net`, `react-typescript` and `react-vite` create a project. 2.x listed them under `aliases`, a property the template engine does not read, so only `abblix-react` found the template.
 - A new project no longer receives a prebuilt `ClientApp/dist` from the package; 2.0.0 and 2.0.1 shipped one it never needed.
 
