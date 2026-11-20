@@ -9,7 +9,11 @@
     <DefaultItemExcludes>$(DefaultItemExcludes);$(ClientRoot)node_modules\**</DefaultItemExcludes>
   </PropertyGroup>
   <ItemGroup>
+<!--#if (UseMvc) -->
 	<PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.0.0" />
+<!--#else -->
+	<PackageReference Include="Abblix.Oidc.Server.MinimalApi" Version="3.0.0" />
+<!--#endif -->
 	<PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="11.0.0" />
 	<PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="11.0.0" />
 	<PackageReference Include="SQLitePCLRaw.bundle_e_sqlite3" Version="3.0.5" />
