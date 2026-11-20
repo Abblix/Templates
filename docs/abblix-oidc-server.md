@@ -7,7 +7,7 @@ The template lives in the [OpenIDProviderIdentityTemplate](../OpenIDProviderIden
 ## Requirements
 
 - The [.NET 11 SDK](https://dotnet.microsoft.com/download/dotnet/11.0). The project targets .NET 11.
-- [Node.js](https://nodejs.org/) with npm. The build bundles Bootstrap into `wwwroot/lib` with Vite and installs the npm packages first when `ClientAssets/node_modules` is missing, so the first build of a new project runs both. Without Node.js the build stops with an error that says so.
+- [Node.js](https://nodejs.org/) with npm. The build bundles Bootstrap into `wwwroot/lib` with Vite and first installs the npm packages with `npm ci`, exactly as `ClientAssets/package-lock.json` records them, whenever that lock is newer than the last install, so the first build of a new project runs both. Without Node.js the build stops with an error that says so.
 
 ## Creating a project from the command line
 
