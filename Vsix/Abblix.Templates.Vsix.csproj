@@ -34,6 +34,7 @@
     <None Include="source.extension.vsixmanifest" />
     <Content Include="Abblix.Templates.pkgdef" />
     <Content Include="..\Abblix.png" Link="Abblix.png" />
+    <Content Include="Abblix-preview.png" />
   </ItemGroup>
 
   <!--
