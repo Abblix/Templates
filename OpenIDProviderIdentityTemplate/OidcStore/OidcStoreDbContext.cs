@@ -4,20 +4,37 @@ using Microsoft.EntityFrameworkCore;
 namespace AspNetIdentitySample.OidcStore;
 
 /// <summary>
-/// Durable storage for the OpenID Connect protocol state that must outlive a process:
-/// the signing keys and the client registrations. Kept in its own database, separate from
-/// the Identity user store, so the two concerns (who the users are versus how the protocol
-/// is configured) do not share a schema.
+/// Durable storage for the OpenID Connect configuration and protocol state that must outlive a process:
+/// the tenants with the clients they declare, the signing keys and the dynamic client registrations. Kept
+/// in its own database, separate from the Identity user store, so the two concerns (who the users are
+/// versus how the protocol is configured) do not share a schema.
 /// </summary>
 /// <remarks>
-/// Every row names the tenant it belongs to by the tenant's id and generation together: one tenant
-/// never publishes or signs with another's keys, a client registered at one tenant is unknown at
-/// another, and a tenant created again under the id of a removed one finds none of the removed one's rows.
+/// A signing key and a registration name the tenant they belong to by the tenant's id and generation
+/// together: one tenant never publishes or signs with another's keys, a client registered at one tenant is
+/// unknown at another, and a tenant created again under the id of a removed one finds none of the removed
+/// one's rows. A new database starts with the rows of <see cref="InitialData"/>.
 /// </remarks>
 public class OidcStoreDbContext(DbContextOptions<OidcStoreDbContext> options) : DbContext(options)
 {
+    public DbSet<PersistedTenant> Tenants => Set<PersistedTenant>();
+    public DbSet<PersistedTenantClient> TenantClients => Set<PersistedTenantClient>();
     public DbSet<PersistedSigningKey> SigningKeys => Set<PersistedSigningKey>();
     public DbSet<PersistedClient> Clients => Set<PersistedClient>();
+
+    protected override void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        modelBuilder.Entity<PersistedTenant>().HasData(InitialData.Tenant);
+
+        // Deleting a tenant deletes the clients it declares, where foreign keys are on: EF Core turns them on for
+        // its connections, the sqlite3 shell only after PRAGMA foreign_keys = ON
+        modelBuilder.Entity<PersistedTenantClient>()
+            .HasOne<PersistedTenant>()
+            .WithMany()
+            .HasForeignKey(client => client.TenantId)
+            .OnDelete(DeleteBehavior.Cascade);
+        modelBuilder.Entity<PersistedTenantClient>().HasData(InitialData.DemoClients);
+    }
 }
 
 /// <summary>
@@ -31,7 +48,7 @@ public class PersistedSigningKey
     [Key]
     public required string KeyId { get; set; }
 
-    // The tenant's Id and Generation; the generation is empty for a tenant the settings declare.
+    // The Id and Generation of the tenant in Tenants
     public required string TenantId { get; set; }
     public required string Generation { get; set; }
 
@@ -55,7 +72,7 @@ public class PersistedSigningKey
 [PrimaryKey(nameof(TenantId), nameof(Generation), nameof(ClientKey))]
 public class PersistedClient
 {
-    // The tenant's Id and Generation; the generation is empty for a tenant the settings declare.
+    // The Id and Generation of the tenant in Tenants
     public required string TenantId { get; set; }
     public required string Generation { get; set; }
 

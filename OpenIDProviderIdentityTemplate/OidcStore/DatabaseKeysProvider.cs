@@ -25,8 +25,8 @@ public sealed class DatabaseKeysProvider(
     IDbContextFactory<OidcStoreDbContext> contextFactory,
     IDataProtectionProvider dataProtection) : IAuthServiceKeysProvider
 {
-    // The Data Protection purpose string binds the protector to this use. Seeding (which writes the
-    // key) and this provider (which reads it) must create the protector with the identical purpose.
+    // The Data Protection purpose string binds the protector to this use. SigningKeyOpening (which writes
+    // the key) and this provider (which reads it) must create the protector with the identical purpose.
     public const string SigningKeyProtectorPurpose = "AspNetIdentitySample.OidcStore.SigningKeys.v1";
 
     private readonly IDataProtector _protector = dataProtection.CreateProtector(SigningKeyProtectorPurpose);

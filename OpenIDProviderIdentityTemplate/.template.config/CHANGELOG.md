@@ -2,6 +2,15 @@
 
 What changed in the project that the OpenIDProviderIdentityTemplate creates, version by version. The versions are those of the Abblix.Templates package that ships the template.
 
+## 3.1.0
+
+- The tenant and the clients it declares live in `oidc.db`, in the `Tenants` and `TenantClients` tables, which the server reads through `OidcStore/DurableTenantStore.cs`. `Program.cs` no longer defines the issuer, its resources or its login page, and `appsettings.Development.json` no longer declares `Oidc:Clients`. A new database starts with the tenant and the demo clients `test_client` and `console_client`, written by `EnsureCreated` from the seed data in `OidcStore/InitialData.cs`. In 3.0.0 the configured clients were copied into the `Clients` table on the first run, and a later edit to the configuration was not applied.
+- A row added, changed or deleted in `Tenants` or `TenantClients` is served as such within `OidcOptions.RefreshTenantsEvery`, without a restart. A tenant whose rows cannot be read, such as a `Payload` that is not valid JSON, is left out and logged as an error naming the tenant, the row and the reason, and so is a tenant the server's checks refuse, such as one with a client secret hash of the wrong length; the provider keeps running and answers that tenant's requests as for no tenant until the row is fixed. Each tenant is an issuer, and serving more than one issuer needs an Abblix OIDC Server license: set it as `OidcOptions.LicenseJwt` in the options delegate `Program.cs` passes to `AddOidcServices`, as [Licensing](https://www.abblix.com/en/docs/multi-tenancy#license) describes. Without one, the server counts tenants in the order of their first requests and refuses those beyond the first.
+- The demo clients' secret is generated for each project as it is created, or set with `--client-secret`. It is held in `OidcStore/InitialData.cs` and `requests.http`. The secret `secret` that 3.0.0 published with the template opens nothing.
+- A tenant's signing key is created by `OidcStore/SigningKeyOpening.cs` before the server first serves the tenant, so a tenant added to the database while the provider runs gets one too. The startup code no longer creates it.
+- The pipeline calls `app.UseMultiTenancy()`, which the server requires once its tenants come from a store of the host's own. A request is matched to its tenant by host name and path, so the provider answers at the issuer's host name only: `127.0.0.1` in place of `localhost` reaches no tenant.
+- `dotnet publish` copies `appsettings.Development.json` again: it holds only logging levels now.
+
 ## 3.0.0
 
 First release of this template.

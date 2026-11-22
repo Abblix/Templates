@@ -9,6 +9,10 @@
             "longName": "https-port",
             "shortName": ""
         },
+        "clientSecret": {
+            "longName": "client-secret",
+            "shortName": ""
+        },
         "user": {
             "longName": "user",
             "shortName": ""

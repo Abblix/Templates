@@ -8,7 +8,7 @@ All three projects target .NET 11, so the .NET 11 SDK has to be installed.
 
 ## Abblix OpenID Provider (ASP.NET Identity + EF Core)
 
-An OpenID Provider to start a real project from. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and client registrations and the signing key are stored in SQLite too, so they survive a restart. The build bundles Bootstrap with Vite, so it needs Node.js with npm.
+An OpenID Provider to start a real project from. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the issuer with its clients, the signing key and client registrations are stored in SQLite too, so they survive a restart. The build bundles Bootstrap with Vite, so it needs Node.js with npm.
 
 Options in the dialog:
 

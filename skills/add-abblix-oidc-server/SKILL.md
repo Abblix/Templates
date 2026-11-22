@@ -290,7 +290,8 @@ Keys kept in the application's database, encrypted with ASP.NET Core Data Protec
 `abblix-oidc-server` template does: an `IAuthServiceKeysProvider` registered after `AddOidcServices`, which then
 replaces the server's own, and the tenant declares no `SigningKeys`. Its
 [DatabaseKeysProvider.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/DatabaseKeysProvider.cs)
-and the seeding in its `Program.cs` can be copied.
+and [SigningKeyOpening.cs](https://github.com/Abblix/Templates/blob/master/OpenIDProviderIdentityTemplate/OidcStore/SigningKeyOpening.cs),
+which creates a tenant's key before the server first serves it, can be copied.
 
 Keys held by HashiCorp Vault, OpenBao or Azure Key Vault, through the `Abblix.JWT.Vault` or `Abblix.JWT.Azure`
 package, so the private key never enters the process: see

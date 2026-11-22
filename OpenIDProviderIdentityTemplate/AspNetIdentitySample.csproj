@@ -24,10 +24,6 @@
     <None Remove="$(ClientRoot)**" />
     <None Include="$(ClientRoot)**" Exclude="$(ClientRoot)node_modules\**" />
   </ItemGroup>
-  <ItemGroup>
-    <!-- It declares the demo clients and their published secret: keep it out of the published app. -->
-    <Content Update="appsettings.Development.json" CopyToPublishDirectory="Never" />
-  </ItemGroup>
   <!-- Restore npm packages whenever package-lock.json is newer than the copy npm keeps in node_modules: a fresh clone, or a pull that changed the lock. -->
   <Target Name="EnsureClientDeps" Inputs="$(ClientRoot)package-lock.json" Outputs="$(ClientRoot)node_modules\.package-lock.json">
     <Exec Command="node --version" ContinueOnError="true">
