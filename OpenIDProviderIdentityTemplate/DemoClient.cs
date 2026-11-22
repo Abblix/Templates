@@ -112,6 +112,7 @@ public static class DemoClient
                     """));
 
             var token = endpoints.Resolve(OidcEndpoints.Token)!.OriginalString;
+            // The secret the project was created with: a secret changed since in TenantClients is not known here
             var command = $"curl -k {token} -d grant_type=authorization_code -d code={code} " +
                           $"-d redirect_uri={Uri.EscapeDataString(redirectUri.OriginalString)} -d code_verifier={started.CodeVerifier} " +
                           $"-d client_id={ClientId} -d client_secret={InitialData.DemoClientSecret}";

@@ -26,7 +26,8 @@ public class OidcStoreDbContext(DbContextOptions<OidcStoreDbContext> options) : 
     {
         modelBuilder.Entity<PersistedTenant>().HasData(InitialData.Tenant);
 
-        // Deleting a tenant deletes the clients it declares
+        // Deleting a tenant deletes the clients it declares, where foreign keys are on: EF Core turns them on for
+        // its connections, the sqlite3 shell only after PRAGMA foreign_keys = ON
         modelBuilder.Entity<PersistedTenantClient>()
             .HasOne<PersistedTenant>()
             .WithMany()
