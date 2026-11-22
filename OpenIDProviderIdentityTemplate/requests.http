@@ -10,11 +10,10 @@
 # The provider's address: its launch profile's URL, which is also the issuer it writes into every token.
 @host = https://localhost:5001
 
-# A confidential client registered for the client credentials grant only; "secret" is the demo
-# secret whose SHA-512 hash appsettings.Development.json declares and the provider seeds into oidc.db at
-# startup in Development (the environment of the launch profile `dotnet run` uses).
+# A confidential client declared for the client credentials grant only. Its secret was generated for this
+# project when it was created and is the one OidcStore/InitialData.cs holds; oidc.db keeps only its hash.
 @clientId = console_client
-@clientSecret = secret
+@clientSecret = DEMO_CLIENT_SECRET
 
 # After running the token request below, paste its access_token here to run the introspection request.
 @accessToken = paste-the-access_token-here
@@ -57,8 +56,8 @@ Content-Type: application/x-www-form-urlencoded
 token={{accessToken}}&client_id={{clientId}}&client_secret={{clientSecret}}
 
 ### Tokens for a code from signing in as test_client
-# Signing in with the authorization code flow, as test_client, the interactive client that
-# appsettings.Development.json declares with the same demo secret "secret". This project serves the
+# Signing in with the authorization code flow, as test_client, the interactive client declared with the
+# same secret as console_client. This project serves the
 # client's pages itself in Development, so the sign-in happens in a browser: open https://localhost:5001/
 # and choose "Sign in with the demo client".
 #
@@ -74,7 +73,7 @@ token={{accessToken}}&client_id={{clientId}}&client_secret={{clientSecret}}
 POST {{host}}/connect/token
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=authorization_code&code={{code}}&redirect_uri=https%3A%2F%2Flocalhost%3A5001%2Fdemo%2Fcallback&code_verifier={{codeVerifier}}&client_id=test_client&client_secret=secret
+grant_type=authorization_code&code={{code}}&redirect_uri=https%3A%2F%2Flocalhost%3A5001%2Fdemo%2Fcallback&code_verifier={{codeVerifier}}&client_id=test_client&client_secret={{clientSecret}}
 
 ### The signed-in user's claims
 # Answers 200 with sub, name and email for the access token of the code exchange above.
@@ -86,4 +85,4 @@ Authorization: Bearer {{userAccessToken}}
 POST {{host}}/connect/token
 Content-Type: application/x-www-form-urlencoded
 
-grant_type=refresh_token&refresh_token={{refreshToken}}&client_id=test_client&client_secret=secret
+grant_type=refresh_token&refresh_token={{refreshToken}}&client_id=test_client&client_secret={{clientSecret}}

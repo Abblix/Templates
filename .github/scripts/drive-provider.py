@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 """Drive every flow a scaffolded provider template offers, the way a browser and its clients would.
 
-Usage: drive-provider.py <issuer> <login> <password> [production]
+Usage: DEMO_CLIENT_SECRET=<secret> drive-provider.py <issuer> <login> <password> [production]
 
-Without "production" the host must run in Development, where appsettings.Development.json declares
-test_client and console_client with the published secret "secret", and every flow is driven. With it the
+Without "production" the host must run in Development, where test_client and console_client are declared
+with the secret DEMO_CLIENT_SECRET names, and every flow is driven. With it the
 host runs in Production, and the script checks that nothing a new project knows from the template opens
-anything there: no demo client pages, no demo client, and no sample user to sign in with. Each check prints
+anything there: no demo client pages, no client for the published secret "secret", and no sample user to sign
+in with. Each check prints
 one line; the script exits 1 when any failed, after running the rest, so one run names every broken flow.
 
 The pages are read with html.parser, never by matching their text: the login form's antiforgery field
@@ -14,6 +15,7 @@ and the sign-out forms are found as the form elements they are, whatever their m
 """
 import http.cookiejar
 import json
+import os
 import ssl
 import sys
 import urllib.error
@@ -23,6 +25,10 @@ from html.parser import HTMLParser
 
 issuer, login, password = sys.argv[1], sys.argv[2], sys.argv[3]
 production = sys.argv[4:] == ["production"]
+# The demo clients' secret: the one the getting-started template publishes, or the one an abblix-oidc-server
+# project was created with. Required, so a run that forgot it fails on its first token request instead of
+# passing with a value nobody chose.
+client_secret = os.environ["DEMO_CLIENT_SECRET"]
 
 # The host serves the ASP.NET Core development certificate, which the runner does not trust
 tls = ssl.create_default_context()
@@ -158,11 +164,11 @@ status, _, body = call(plain, "/.well-known/jwks")
 check("jwks serves one signing key", status == 200 and len(json_object(body).get("keys", [])) == 1, f"{status} {body[:200]}")
 
 status, _, body = call(plain, "/connect/token", {"grant_type": "client_credentials", "client_id": "console_client",
-                                                 "client_secret": "secret"})
+                                                 "client_secret": client_secret})
 if check("client credentials grant issues a token to console_client",
          status == 200 and "access_token" in json_object(body), f"{status} {body[:300]}"):
     status, _, body = call(plain, "/connect/introspect", {"token": json_object(body)["access_token"],
-                                                          "client_id": "console_client", "client_secret": "secret"})
+                                                          "client_id": "console_client", "client_secret": client_secret})
     check("introspection reports that token active", status == 200 and json_object(body).get("active") is True,
           f"{status} {body[:300]}")
 
@@ -208,7 +214,7 @@ def redeem(page):
     status, _, body = call(plain, "/connect/token", {
         "grant_type": "authorization_code", "code": page.text["code"].strip(),
         "redirect_uri": issuer + "/demo/callback", "code_verifier": page.text["code_verifier"].strip(),
-        "client_id": "test_client", "client_secret": "secret"})
+        "client_id": "test_client", "client_secret": client_secret})
     tokens = json_object(body) if status == 200 else {}
     if not check("code exchange issues ID, access and refresh tokens",
                  all(name in tokens for name in ("id_token", "access_token", "refresh_token")), f"{status} {body[:300]}"):
@@ -225,7 +231,7 @@ if callback:
         check("userinfo names the signed-in user", status == 200 and json_object(body).get("email") == login,
               f"{status} {body[:300]}")
         status, _, body = call(plain, "/connect/token", {"grant_type": "refresh_token", "refresh_token": tokens["refresh_token"],
-                                                         "client_id": "test_client", "client_secret": "secret"})
+                                                         "client_id": "test_client", "client_secret": client_secret})
         check("refresh token issues a new access token", status == 200 and "access_token" in json_object(body),
               f"{status} {body[:300]}")
 

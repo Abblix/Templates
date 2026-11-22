@@ -3,6 +3,8 @@ using System.Text;
 using Abblix.Oidc.Server.Common.Configuration;
 using Abblix.Oidc.Server.Common.Interfaces;
 using Abblix.Oidc.Server.Features.ClientInformation;
+using Abblix.Oidc.Server.Features.MultiTenancy;
+using AspNetIdentitySample.OidcStore;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.WebUtilities;
 using UriBuilder = Abblix.Utils.UriBuilder;
@@ -17,32 +19,38 @@ namespace AspNetIdentitySample;
 /// </summary>
 public static class DemoClient
 {
-    /// <summary>The client appsettings.Development.json declares for the authorization code flow.</summary>
+    /// <summary>The demo client for the authorization code flow, declared in oidc.db by its initial data.</summary>
     public const string ClientId = "test_client";
 
     /// <summary>Where the home page sends a browser to start the sign-in.</summary>
     public const string StartPath = "/demo/start";
 
+    /// <summary>Where the provider sends the code: the path of the first redirect URI of test_client.</summary>
+    public const string CallbackPath = "/demo/callback";
+
+    /// <summary>Where the provider sends the browser after a sign-out: the path of the first post-logout redirect
+    /// URI of test_client.</summary>
+    public const string SignedOutPath = "/demo/signed-out";
+
     private const string FlowCookie = "demo_client_flow";
     private const string Scope = "openid profile email offline_access";
 
     /// <summary>
-    /// Maps the demo client's pages when the configuration declares test_client, which only
-    /// appsettings.Development.json does: without it the authorization request would be refused.
+    /// Maps the demo client's pages. Each request reads test_client as the provider serves it to the request's
+    /// tenant, so the addresses the pages send cannot drift from what the provider accepts for it.
     /// </summary>
-    public static void MapDemoClient(this WebApplication app, ClientInfo[] clients)
+    public static void MapDemoClient(this WebApplication app)
     {
-        var client = Array.Find(clients, candidate => candidate.ClientId == ClientId);
-        if (client is not { RedirectUris.Length: > 0, PostLogoutRedirectUris.Length: > 0 })
-            return;
-
-        // The addresses come from the client's own registration, so the pages cannot drift from what the
-        // provider accepts for it
-        var redirectUri = client.RedirectUris[0];
-        var postLogoutRedirectUri = client.PostLogoutRedirectUris[0];
-
-        app.MapGet(StartPath, (HttpContext context, IDataProtectionProvider protection, IOidcEndpointResolver endpoints) =>
+        app.MapGet(StartPath, async (
+            HttpContext context,
+            IDataProtectionProvider protection,
+            IOidcEndpointResolver endpoints,
+            ITenantAccessor tenants,
+            IClientInfoProvider clients) =>
         {
+            if (await FindAddressesAsync(tenants, clients) is not (var redirectUri, _))
+                return NotDeclared();
+
             // A fresh state and PKCE verifier per sign-in, kept in a protected cookie until the code comes back
             var state = RandomValue();
             var codeVerifier = RandomValue();
@@ -74,15 +82,20 @@ public static class DemoClient
             return Results.Redirect(authorize);
         });
 
-        app.MapGet(redirectUri.AbsolutePath, (
+        app.MapGet(CallbackPath, async (
             HttpContext context,
             IDataProtectionProvider protection,
             IOidcEndpointResolver endpoints,
+            ITenantAccessor tenants,
+            IClientInfoProvider clients,
             string? code,
             string? state,
             string? error,
             string? error_description) =>
         {
+            if (await FindAddressesAsync(tenants, clients) is not (var redirectUri, var postLogoutRedirectUri))
+                return NotDeclared();
+
             var flow = ReadFlow(context, protection);
             context.Response.Cookies.Delete(FlowCookie, new CookieOptions { Path = "/demo" });
 
@@ -101,7 +114,7 @@ public static class DemoClient
             var token = endpoints.Resolve(OidcEndpoints.Token)!.OriginalString;
             var command = $"curl -k {token} -d grant_type=authorization_code -d code={code} " +
                           $"-d redirect_uri={Uri.EscapeDataString(redirectUri.OriginalString)} -d code_verifier={started.CodeVerifier} " +
-                          $"-d client_id={ClientId} -d client_secret=secret";
+                          $"-d client_id={ClientId} -d client_secret={InitialData.DemoClientSecret}";
 
             return Html(Pages.Card("Signed in", $"""
                 <p>The provider sent {ClientId} an authorization code. A client redeems it at the token endpoint,
@@ -116,12 +129,36 @@ public static class DemoClient
                 """));
         });
 
-        app.MapGet(postLogoutRedirectUri.AbsolutePath, () =>
+        app.MapGet(SignedOutPath, () =>
             Html(Pages.Card("Signed out", $"""
                 <p>This is where the provider sends the browser back to {ClientId} after ending the session.</p>
                 <a class="btn btn-primary" href="{StartPath}">Sign in again</a>
                 """)));
     }
+
+    // The first redirect URI and the first post-logout redirect URI of test_client as the provider serves it to the
+    // request's tenant, or null when the tenant declares no such client, or one without them.
+    private static async Task<(Uri RedirectUri, Uri PostLogoutRedirectUri)?> FindAddressesAsync(
+        ITenantAccessor tenants,
+        IClientInfoProvider clients)
+    {
+        if (tenants.Current is not { } current ||
+            await clients.TryFindClientAsync(current.Tenant, ClientId) is not
+            {
+                RedirectUris: [var redirectUri, ..],
+                PostLogoutRedirectUris: [var postLogoutRedirectUri, ..],
+            })
+        {
+            return null;
+        }
+
+        return (redirectUri, postLogoutRedirectUri);
+    }
+
+    private static IResult NotDeclared() => Html(Pages.Card("Demo client not declared", $"""
+        <p>This provider declares no {ClientId} with a redirect URI and a post-logout redirect URI, so it would refuse
+        the sign-in. Its initial data declares one in oidc.db, table TenantClients.</p>
+        """));
 
     // RP-Initiated Logout sent as a form, so the provider asks the user to confirm it (no ID token is held here)
     private static string SignOutForm(IOidcEndpointResolver endpoints, Uri postLogoutRedirectUri) => $"""

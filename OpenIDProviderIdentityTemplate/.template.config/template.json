@@ -69,6 +69,27 @@
             },
             "replaces": "5001"
         },
+        "clientSecret": {
+            "type": "parameter",
+            "datatype": "string",
+            "description": "Secret of the demo clients test_client and console_client, held in OidcStore/InitialData.cs and requests.http. When omitted, a random one is generated as the project is created. It is sent as is in requests.http, so use letters and digits only."
+        },
+        "clientSecretGenerated": {
+            "type": "generated",
+            "generator": "guid",
+            "parameters": {
+                "defaultFormat": "N"
+            }
+        },
+        "clientSecretReplacer": {
+            "type": "generated",
+            "generator": "coalesce",
+            "parameters": {
+                "sourceVariableName": "clientSecret",
+                "fallbackVariableName": "clientSecretGenerated"
+            },
+            "replaces": "DEMO_CLIENT_SECRET"
+        },
         "user": {
             "type": "parameter",
             "datatype": "string",

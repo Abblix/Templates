@@ -126,9 +126,13 @@ jobs:
         # from the project's launchSettings.json, must carry a port from the generator's range, and must
         # be both where the host answers and the issuer discovery names.
         env:
-          # Only appsettings.Development.json declares the demo clients; the host otherwise starts as Production
-          # with none. The last run of each style overrides it with Production to prove exactly that refusal.
+          # The demo client pages and the sample user exist only in Development; the host otherwise starts as
+          # Production. The last run of each style overrides it with Production to prove they are absent there.
           ASPNETCORE_ENVIRONMENT: Development
+          # Given to dotnet new as --client-secret, so the driver knows the demo clients' secret; a project created
+          # without it gets one generated. "secret", the value the getting-started template publishes, is what
+          # the Production run proves refused.
+          DEMO_CLIENT_SECRET: Sm0keClientSecret
         run: |
           set -euo pipefail
           driver="$GITHUB_WORKSPACE/.github/scripts/drive-provider.py"
@@ -137,7 +141,7 @@ jobs:
           for host in minimal mvc; do
             name="SmokeOidc_$host"
             work="$RUNNER_TEMP/$name"
-            dotnet new abblix-oidc-server -n "$name" -o "$work" --host "$host" --user "$login" --password "$password"
+            dotnet new abblix-oidc-server -n "$name" -o "$work" --host "$host" --user "$login" --password "$password" --client-secret "$DEMO_CLIENT_SECRET"
             # The project ships the .gitignore that keeps its databases and the key ring out of a commit
             [ -f "$work/.gitignore" ] || { echo "::error::$host: the scaffolded project has no .gitignore"; exit 1; }
             url=$(jq -er '.profiles.https.applicationUrl' "$work/Properties/launchSettings.json")
@@ -173,7 +177,7 @@ jobs:
             fi
             # Holds only while https://localhost:5004 is a registered resource: an unknown one is refused too.
             refused=$(curl -sk -o refused.json -w '%{http_code}' "$url/connect/token" -d grant_type=client_credentials \
-              -d client_id=console_client -d client_secret=secret -d resource=https://localhost:5004) || refused=none
+              -d client_id=console_client -d client_secret="$DEMO_CLIENT_SECRET" -d resource=https://localhost:5004) || refused=none
             # Waited for, so the next run can take the same address.
             kill "$pid" 2>/dev/null || true
             wait "$pid" 2>/dev/null || true
@@ -200,9 +204,9 @@ jobs:
               print(error)
           sys.exit(1 if errors else 0)' host.log ||
               { echo "::error::$host: the host logged an error while its flows were driven"; exit 1; }
-            # Again in Production, on a database never run in Development: the template must start there, and with
-            # no client in appsettings.json the demo clients' published secret must open nothing, no sample user is
-            # seeded, and no demo client page is served.
+            # Again in Production, on a database never run in Development: the template must start there, the
+            # secret "secret" must open no client (this project's demo clients carry the one it was created with),
+            # no sample user is seeded, and no demo client page is served.
             rm -f oidc.db oidc.db-wal oidc.db-shm users.db users.db-wal users.db-shm
             ASPNETCORE_ENVIRONMENT=Production dotnet "./$name.dll" --urls "$url" &
             pid=$!
@@ -260,6 +264,8 @@ jobs:
         env:
           # For the reason given in the step above: console_client and test_client exist only in Development.
           ASPNETCORE_ENVIRONMENT: Development
+          # The secret this template publishes for its demo clients
+          DEMO_CLIENT_SECRET: secret
         run: |
           set -euo pipefail
           driver="$GITHUB_WORKSPACE/.github/scripts/drive-provider.py"
