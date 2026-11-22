@@ -73,7 +73,8 @@ builder.Services.AddHttpContextAccessor();
 builder.Services.AddConsentGrantedForEveryClient();
 
 // Register Abblix OIDC Server. Its tenants, each an issuer with the clients it declares, come from oidc.db through
-// the tenant store registered below rather than from these options.
+// the tenant store registered below rather than from these options. Serving more than one issuer needs a license,
+// set here as options.LicenseJwt: https://www.abblix.com/en/docs/multi-tenancy#license
 builder.Services.AddOidcServices(_ => { });
 
 // The end-session endpoint leaves two pages to the host: the confirmation of a sign-out no client vouched for, and

@@ -72,7 +72,7 @@
         "clientSecret": {
             "type": "parameter",
             "datatype": "string",
-            "description": "Secret of the demo clients test_client and console_client, held in OidcStore/InitialData.cs and requests.http. When omitted, a random one is generated as the project is created. It is sent as is in requests.http, so use letters and digits only."
+            "description": "Secret of the demo clients test_client and console_client, held in OidcStore/InitialData.cs and requests.http. When omitted, a random one is generated as the project is created. Letters and digits only: it is written into C# source and sent as is in requests.http, where other characters break the build or the requests."
         },
         "clientSecretGenerated": {
             "type": "generated",
