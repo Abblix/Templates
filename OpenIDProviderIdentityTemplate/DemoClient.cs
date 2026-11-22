@@ -156,9 +156,12 @@ public static class DemoClient
         return (redirectUri, postLogoutRedirectUri);
     }
 
-    private static IResult NotDeclared() => Html(Pages.Card("Demo client not declared", $"""
-        <p>This provider declares no {ClientId} with a redirect URI and a post-logout redirect URI, so it would refuse
-        the sign-in. Its initial data declares one in oidc.db, table TenantClients.</p>
+    // Reached when the request was matched to no tenant, which includes a tenant left out for a row it could not
+    // serve, as well as when the tenant declares no such client
+    private static IResult NotDeclared() => Html(Pages.Card("Demo client not available", $"""
+        <p>This request reached no tenant serving {ClientId} with a redirect URI and a post-logout redirect URI, so a
+        sign-in would be refused. The tenant may be left out of the tenants served: the host log names the tenant and
+        the reason. The initial data declares {ClientId} in oidc.db, table TenantClients.</p>
         """));
 
     // RP-Initiated Logout sent as a form, so the provider asks the user to confirm it (no ID token is held here)
