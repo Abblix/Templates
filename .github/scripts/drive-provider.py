@@ -142,7 +142,9 @@ def production_checks():
     check("demo client pages are not served", status == 404, f"{status} {body[:200]}")
     status, _, body = call(plain, "/connect/token", {"grant_type": "client_credentials", "client_id": "console_client",
                                                      "client_secret": "secret"})
-    check("console_client with the published secret is refused", status == 401 and
+    # 400 rather than 401: the secret goes in the form body, and only a request that authenticated with HTTP Basic is
+    # answered 401 with a Basic challenge (OAuth 2.1 section 3.2.4)
+    check("console_client with the published secret is refused", status == 400 and
           json_object(body).get("error") == "invalid_client", f"{status} {body[:300]}")
     signer = browser()
     status, _, body = call(signer, "/Auth/Login")
