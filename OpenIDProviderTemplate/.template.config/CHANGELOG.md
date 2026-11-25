@@ -2,6 +2,10 @@
 
 What changed in the project that the OpenIDProviderTemplate creates, version by version. The versions are those of the Abblix.Templates package that ships the template; a version that left the template untouched says so.
 
+## 3.1.0
+
+- The project references Abblix OIDC Server 3.1.0, up from 3.0.0.
+
 ## 3.0.0
 
 ### Upgrading a project created from 2.x
