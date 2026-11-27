@@ -5,6 +5,7 @@ What changed in the project that the OpenIDProviderTemplate creates, version by 
 ## 3.1.0
 
 - The project references Abblix OIDC Server 3.1.0, up from 3.0.0.
+- `Program.cs` no longer calls `AddDistributedMemoryCache()`, nor `AddMemoryCache()` in the Minimal API host: 3.1 falls back to in-process caches of its own when the host registers none. The build warning on the cache stays where a distributed cache would be registered and says what the in-process one loses.
 
 ## 3.0.0
 
