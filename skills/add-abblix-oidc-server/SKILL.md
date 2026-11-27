@@ -15,7 +15,7 @@ the `abblix-oidc-server` and `abblix-oidc-server-gettingstarted` templates of
 
 ## Rules that hold for the whole task
 
-- Write only the API names this skill gives, or names you have read in the installed package. Version 3.0
+- Write only the API names this skill gives, or names you have read in the installed package. Version 3.x
   renamed and moved much of what 2.x had (`OidcOptions` no longer holds clients or keys, the registries take a
   `TenantDefinition`), so a name recalled from older samples compiles against nothing or against the wrong thing.
 - The library targets .NET 11 only. If the project's `TargetFramework` is lower, say so and stop until the user

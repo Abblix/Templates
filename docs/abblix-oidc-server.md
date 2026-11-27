@@ -1,6 +1,6 @@
 # abblix-oidc-server
 
-`abblix-oidc-server` creates an OpenID Provider on ASP.NET Core and Abblix OIDC Server 3.0, as a Minimal API host or, with `--host mvc`, an MVC host. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the issuer with its clients, the signing key and dynamic client registrations are stored in SQLite as well, so a restart keeps them. Start a real project from this template. For a smaller provider that keeps everything in memory and is meant for learning, see [abblix-oidc-server-gettingstarted](abblix-oidc-server-gettingstarted.md).
+`abblix-oidc-server` creates an OpenID Provider on ASP.NET Core and Abblix OIDC Server 3.x, as a Minimal API host or, with `--host mvc`, an MVC host. Users are kept by ASP.NET Core Identity on EF Core with SQLite, and the issuer with its clients, the signing key and dynamic client registrations are stored in SQLite as well, so a restart keeps them. Start a real project from this template. For a smaller provider that keeps everything in memory and is meant for learning, see [abblix-oidc-server-gettingstarted](abblix-oidc-server-gettingstarted.md).
 
 The template lives in the [OpenIDProviderIdentityTemplate](../OpenIDProviderIdentityTemplate) folder. What changed between versions is in its [changelog](../OpenIDProviderIdentityTemplate/.template.config/CHANGELOG.md).
 
@@ -127,9 +127,10 @@ With the provider running, open `requests.http` in Visual Studio, JetBrains Ride
 
 ## Before deploying
 
-The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients and, when the sample user is created without `--password`, the printed password. Each warning names the fix. Besides them:
+The build prints warnings (CS1030) for what a real deployment replaces: the local Data Protection key ring, the signing key kept in the database, the client store holding secret hashes, the demo clients, the in-process cache and, when the sample user is created without `--password`, the printed password. Each warning names the fix. Besides them:
 
 - Set the `Issuer` of the tenant to the provider's public address, the one clients validate its tokens against: in `InitialData.cs` before the production database is created, or in the `Tenants` table of one that exists.
 - Set `AllowedHosts` in `appsettings.json` to the issuer's host name instead of `*`.
+- Register a shared, persistent `IDistributedCache`, such as Redis or SQL Server, in `Program.cs` where its warning stands. Without one the server keeps authorization codes, token revocations and its other short-lived state in process, where a restart empties it and other instances cannot see it. See [Choosing a cache backend](https://docs.abblix.com/docs/choosing-a-cache-backend).
 - Remove `test_client` and `console_client` from `DemoClients` in `InitialData.cs` before the production database is created, or delete their rows from `TenantClients` in one that exists. They redirect to `localhost`, and their secret is in the project's source.
 - Delete the sample user from `users.db`, or start from a `users.db` that never ran in Development: its login is the template's default or the one given to `dotnet new`.

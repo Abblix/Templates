@@ -148,9 +148,7 @@ builder.Services
         };
     });
 
-// No IDistributedCache is registered, so the server keeps authorization codes, token revocations and its other
-// short-lived state in process, where a restart empties it and other instances cannot see it. A deployment
-// registers a persistent, shared cache here, such as Redis: https://docs.abblix.com/docs/choosing-a-cache-backend
+#warning The server keeps authorization codes, token revocations and its other short-lived state in an in-process cache, where a restart empties it and other instances cannot see it; register a persistent, shared IDistributedCache (Redis/SQL) here for production. https://docs.abblix.com/docs/choosing-a-cache-backend
 
 var app = builder.Build();
 
