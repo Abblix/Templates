@@ -1,8 +1,8 @@
 ---
 name: add-abblix-oidc-server
-description: Adds Abblix OIDC Server 3.0 to an existing ASP.NET Core application so that the application itself becomes an OpenID Connect provider, issuing tokens to its own client applications. Use when asked to "make this app an OpenID Connect provider", "add an OIDC server", "add Abblix OIDC Server", "issue ID tokens from this app" or "let other apps sign in with this app's users". Not for signing users in through an external provider (that is an OpenID Connect client, Microsoft.AspNetCore.Authentication.OpenIdConnect), and not for starting a new project, which the abblix-oidc-server template does.
+description: Adds Abblix OIDC Server 3.1 to an existing ASP.NET Core application so that the application itself becomes an OpenID Connect provider, issuing tokens to its own client applications. Use when asked to "make this app an OpenID Connect provider", "add an OIDC server", "add Abblix OIDC Server", "issue ID tokens from this app" or "let other apps sign in with this app's users". Not for signing users in through an external provider (that is an OpenID Connect client, Microsoft.AspNetCore.Authentication.OpenIdConnect), and not for starting a new project, which the abblix-oidc-server template does.
 license: MIT
-compatibility: ASP.NET Core on .NET 11 with Abblix OIDC Server 3.0 (NuGet packages Abblix.OIDC.Server.MVC or Abblix.OIDC.Server.MinimalAPI)
+compatibility: ASP.NET Core on .NET 11 with Abblix OIDC Server 3.1 (NuGet packages Abblix.OIDC.Server.MVC or Abblix.OIDC.Server.MinimalAPI)
 ---
 
 # Add Abblix OIDC Server to an existing ASP.NET Core application
@@ -15,15 +15,15 @@ the `abblix-oidc-server` and `abblix-oidc-server-gettingstarted` templates of
 
 ## Rules that hold for the whole task
 
-- Write only the API names this skill gives, or names you have read in the installed package. Version 3.0
+- Write only the API names this skill gives, or names you have read in the installed package. Version 3.x
   renamed and moved much of what 2.x had (`OidcOptions` no longer holds clients or keys, the registries take a
   `TenantDefinition`), so a name recalled from older samples compiles against nothing or against the wrong thing.
 - The library targets .NET 11 only. If the project's `TargetFramework` is lower, say so and stop until the user
   agrees to raise it: raising a framework is their decision, it affects every other package of the project.
 - Install exactly one adapter. Both together make the application refuse to start, since both map the same paths.
 - The server does not start without a consent decision (step 2). Without `app.UseCors()` after routing
-  (step 3), or without `IMemoryCache` (step 2), discovery and the token endpoint answer 500 while the
-  authorization endpoint may still work, so a working sign-in redirect rules out neither cause.
+  (step 3), discovery and the token endpoint answer 500 while the authorization endpoint may still work, so a
+  working sign-in redirect does not rule it out.
 - The server writes its session into the cookie scheme named `Cookies` and nowhere else. If the application's
   own sign-in uses that scheme too, stop at step 0 (see there): the two overwrite each other.
 - Keep everything the application already does. Add registrations and middleware beside the existing ones; never
@@ -52,7 +52,8 @@ Before editing, find out and note:
 - Where users and their passwords live (ASP.NET Core Identity, a table of the application's own, an external
   directory). The server keeps no users; it asks the application for them.
 - Whether `IDistributedCache` is registered (`AddStackExchangeRedisCache`, `AddDistributedSqlServerCache`,
-  `AddDistributedMemoryCache`).
+  `AddDistributedMemoryCache`). The server keeps its short-lived state there when it is, and in process when it
+  is not (step 2).
 - Routes the application already serves under `/connect/` or `/.well-known/`, which would collide with the
   server's defaults.
 - The address the application is served on in production. That address becomes the issuer, and every token
@@ -63,17 +64,17 @@ Before editing, find out and note:
 MVC applications:
 
 ```shell
-dotnet add package Abblix.OIDC.Server.MVC --version 3.0.0
+dotnet add package Abblix.OIDC.Server.MVC --version 3.1.0
 ```
 
 Minimal API applications:
 
 ```shell
-dotnet add package Abblix.OIDC.Server.MinimalAPI --version 3.0.0
+dotnet add package Abblix.OIDC.Server.MinimalAPI --version 3.1.0
 ```
 
 Each pulls in `Abblix.OIDC.Server`, `Abblix.OIDC`, `Abblix.JWT`, `Abblix.DependencyInjection` and
-`Abblix.Utils`. Use the newest 3.x the feed offers if it is later than 3.0.0.
+`Abblix.Utils`. Use the newest 3.x the feed offers if it is later than 3.1.0.
 
 ## Step 2: register the services
 
@@ -90,7 +91,7 @@ using Abblix.Oidc.Server.Mvc;          // a Minimal API application uses Abblix.
 // To ask the end user, register an IUserConsentsProvider of your own instead.
 builder.Services.AddConsentGrantedForEveryClient();
 
-// One tenant: 3.0 always serves tenants, and an application with one issuer declares one.
+// One tenant: the server always serves tenants, and an application with one issuer declares one.
 builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefinition
 {
     Id = "main",
@@ -111,17 +112,17 @@ builder.Services.AddOidcServices(options => options.Tenants.Add(new TenantDefini
 // already uses that scheme for its own sign-in)
 builder.Services.AddAuthentication().AddCookie();
 
-// Authorization codes, request URIs and the like live here between requests.
-// Several instances need a shared cache (Redis, SQL Server); skip this line if one is registered already.
-builder.Services.AddDistributedMemoryCache();
-
-// The server needs IMemoryCache and, in 3.0.0, does not register it. Views bring one, AddControllers alone
-// and Minimal API do not; the call does nothing where one is registered already.
-builder.Services.AddMemoryCache();
-
 // The users: the server asks this service for the claims of a signed-in user
 builder.Services.AddScoped<IUserInfoProvider, AppUserInfoProvider>();
 ```
+
+Step 2 registers no cache. Between requests the server keeps authorization codes, pushed requests, token
+revocations and the like in the application's `IDistributedCache`, and in process when the application registers
+none. That is enough for development and a single instance, but a restart empties it, so revoked tokens are
+accepted again, and other instances cannot see it. Tell the user so, and that production needs a shared,
+persistent `IDistributedCache` such as Redis
+([Choosing a cache backend](https://docs.abblix.com/docs/choosing-a-cache-backend)). The server finds a cache
+registered without a key; one registered only as a keyed service is not used.
 
 Put the issuer in `appsettings.json` (and the development address in `appsettings.Development.json`):
 
@@ -321,8 +322,6 @@ the server builds the addresses in the discovery document from the host a reques
 
 - 500 from discovery and the token endpoint, the log saying the endpoint contains CORS metadata but no
   middleware supporting CORS was found: `app.UseCors()` is missing or sits before `app.UseRouting()`.
-- 500 from discovery and the token endpoint, `Unable to resolve service for type
-  'Microsoft.Extensions.Caching.Memory.IMemoryCache'`: add `builder.Services.AddMemoryCache()` (step 2).
 - 500 from the login page, `No service for type
   'Microsoft.AspNetCore.Mvc.ViewFeatures.ITempDataDictionaryFactory' has been registered`: the MVC login page
   was added to an application without views; use the Minimal API login endpoints (step 0).

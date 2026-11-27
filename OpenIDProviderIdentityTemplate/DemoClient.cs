@@ -144,7 +144,8 @@ public static class DemoClient
         IClientInfoProvider clients)
     {
         if (tenants.Current is not { } current ||
-            await clients.TryFindClientAsync(current.Tenant, ClientId) is not
+            !(await clients.FindClientAsync(current.Tenant, ClientId)).TryGetSuccess(out var client) ||
+            client is not
             {
                 RedirectUris: [var redirectUri, ..],
                 PostLogoutRedirectUris: [var postLogoutRedirectUri, ..],

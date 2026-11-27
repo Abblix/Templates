@@ -64,7 +64,6 @@ builder.Services.AddControllersWithViews();
 // The Minimal API host has no MVC, so the services the pipeline relies on are registered directly
 builder.Services.AddAuthorization();
 builder.Services.AddAntiforgery();
-builder.Services.AddMemoryCache();
 builder.Services.AddHttpContextAccessor();
 #endif
 
@@ -149,8 +148,7 @@ builder.Services
         };
     });
 
-builder.Services
-    .AddDistributedMemoryCache();
+#warning The server keeps authorization codes, token revocations and its other short-lived state in an in-process cache, where a restart empties it and other instances cannot see it; register a persistent, shared IDistributedCache (Redis/SQL) here for production. https://docs.abblix.com/docs/choosing-a-cache-backend
 
 var app = builder.Build();
 

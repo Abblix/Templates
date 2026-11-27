@@ -8,9 +8,9 @@
 
   <ItemGroup>
 <!--#if (UseMvc) -->
-    <PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.0.0" />
+    <PackageReference Include="Abblix.Oidc.Server.Mvc" Version="3.1.0" />
 <!--#else -->
-    <PackageReference Include="Abblix.Oidc.Server.MinimalApi" Version="3.0.0" />
+    <PackageReference Include="Abblix.Oidc.Server.MinimalApi" Version="3.1.0" />
 <!--#endif -->
   </ItemGroup>
 

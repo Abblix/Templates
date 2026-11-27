@@ -1,6 +1,6 @@
 # abblix-oidc-server-gettingstarted
 
-`abblix-oidc-server-gettingstarted` creates a minimal OpenID Provider on ASP.NET Core and Abblix OIDC Server 3.0, as a Minimal API host or, with `--host mvc`, an MVC host, meant for learning how the server fits together. Users and clients are kept in memory and the signing key is generated at every startup, so nothing survives a restart. Comments in the code and build warnings point at what a real provider does instead. To start a real project, use [abblix-oidc-server](abblix-oidc-server.md).
+`abblix-oidc-server-gettingstarted` creates a minimal OpenID Provider on ASP.NET Core and Abblix OIDC Server 3.x, as a Minimal API host or, with `--host mvc`, an MVC host, meant for learning how the server fits together. Users and clients are kept in memory and the signing key is generated at every startup, so nothing survives a restart. Comments in the code and build warnings point at what a real provider does instead. To start a real project, use [abblix-oidc-server](abblix-oidc-server.md).
 
 The template lives in the [OpenIDProviderTemplate](../OpenIDProviderTemplate) folder. What changed between versions is in its [changelog](../OpenIDProviderTemplate/.template.config/CHANGELOG.md).
 

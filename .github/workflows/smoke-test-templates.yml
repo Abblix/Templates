@@ -64,7 +64,7 @@ jobs:
       - name: Setup .NET
         uses: actions/setup-dotnet@c2fa09f4bde5ebb9d1777cf28262a3eb3db3ced7 # v5.2.0
         with:
-          # Both: every template targets .NET 11, which Abblix OIDC Server 3.0 requires, while the packing
+          # Both: every template targets .NET 11, which Abblix OIDC Server 3.x requires, while the packing
           # project Abblix.Templates.csproj still targets net10.0.
           dotnet-version: |
             10.0.x
